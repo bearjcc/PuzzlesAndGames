@@ -42,7 +42,6 @@ typedef struct PgCatalogState {
   int rows;
   int header_block_h;
   int footer_h;
-  int grid_top;
   SDL_FRect tiles[PG_CATALOG_NUM_GAMES];
   int hover_slot;
 } PgCatalogState;
@@ -86,7 +85,6 @@ static void catalog_layout(PgCatalogState *s, int w, int h)
   if (body_h < 120) {
     body_h = 120;
   }
-  s->grid_top = body_top;
 
   float tile_h = ((float)body_h - (float)(s->rows - 1) * (float)s->gap) / (float)s->rows;
   if (tile_h < 100.0f) {
@@ -103,7 +101,7 @@ static void catalog_layout(PgCatalogState *s, int w, int h)
     int c = i % s->cols;
     int r = i / s->cols;
     s->tiles[i].x = x0 + (float)c * (tile_w + (float)s->gap);
-    s->tiles[i].y = (float)s->grid_top + (float)r * (tile_h + (float)s->gap);
+    s->tiles[i].y = (float)body_top + (float)r * (tile_h + (float)s->gap);
     s->tiles[i].w = tile_w;
     s->tiles[i].h = tile_h;
   }
