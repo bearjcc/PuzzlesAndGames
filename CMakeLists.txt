@@ -106,13 +106,32 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(pg_tictactoe PUBLIC m)
 endif()
 
+add_library(pg_slitherlink STATIC
+  games/slitherlink/slitherlink_board.c
+  games/slitherlink/slitherlink_game.c
+)
+target_include_directories(pg_slitherlink PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/slitherlink")
+target_link_libraries(pg_slitherlink PUBLIC pg_shell)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(pg_slitherlink PUBLIC m)
+endif()
+
 add_executable(puzzlesgames src/main.c)
 target_include_directories(puzzlesgames PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe")
-target_link_libraries(puzzlesgames PRIVATE pg_g2048 pg_letterlock pg_tictactoe SDL2::SDL2 SDL2::SDL2main)
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/slitherlink")
+target_link_libraries(puzzlesgames PRIVATE
+  pg_g2048
+  pg_letterlock
+  pg_tictactoe
+  pg_slitherlink
+  SDL2::SDL2
+  SDL2::SDL2main)
 
 if(WIN32)
   target_link_libraries(puzzlesgames PRIVATE shell32)
@@ -135,4 +154,10 @@ if(PG_BUILD_TESTS)
   target_include_directories(test_tictactoe_board PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe")
   add_test(NAME tictactoe_board COMMAND test_tictactoe_board)
+
+  add_executable(test_slitherlink_board tests/test_slitherlink_board.c games/slitherlink/slitherlink_board.c)
+  target_include_directories(test_slitherlink_board PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/games/slitherlink")
+  add_test(NAME slitherlink_board COMMAND test_slitherlink_board)
 endif()
