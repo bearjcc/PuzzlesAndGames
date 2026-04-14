@@ -7,15 +7,30 @@
 #include "tictactoe_game.h"
 
 #include "pg/app.h"
-#include "pg/digits.h"
+#include "pg/text.h"
+#include "pg/theme.h"
 
 #include <SDL.h>
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
 #define PG_CATALOG_NUM_GAMES 5
-#define PG_CATALOG_COLS 3
+
+typedef struct PgCatalogEntry {
+  const PgGameVtable *(*vt_fn)(void);
+  const char *window_title;
+  const char *label;
+} PgCatalogEntry;
+
+static const PgCatalogEntry kCatalogEntries[PG_CATALOG_NUM_GAMES] = {
+    {g2048_game_vt, "PuzzlesAndGames - 2048", "2048"},
+    {mastermind_game_vt, "PuzzlesAndGames - Mastermind", "Mastermind"},
+    {letterlock_game_vt, "PuzzlesAndGames - Letterlock", "Letterlock"},
+    {tictactoe_game_vt, "PuzzlesAndGames - Tic Tac Toe", "Tic-tac-toe"},
+    {slitherlink_game_vt, "PuzzlesAndGames - Slitherlink", "Slitherlink"},
+};
 
 typedef struct PgCatalogState {
   SDL_Renderer *renderer;
@@ -23,88 +38,101 @@ typedef struct PgCatalogState {
   int win_h;
   int margin;
   int gap;
-  int header_h;
-  int card_y;
-  int card_w;
-  int card_h;
-  int row0_x[PG_CATALOG_COLS];
-  int row1_x0;
+  int cols;
+  int rows;
+  int header_block_h;
+  int footer_h;
+  int grid_top;
+  SDL_FRect tiles[PG_CATALOG_NUM_GAMES];
+  int hover_slot;
 } PgCatalogState;
+
+static int catalog_pick_cols(int usable_w, int gap)
+{
+  const int min_tile = 152;
+  if (usable_w >= min_tile * 3 + gap * 2) {
+    return 3;
+  }
+  if (usable_w >= min_tile * 2 + gap) {
+    return 2;
+  }
+  return 1;
+}
 
 static void catalog_layout(PgCatalogState *s, int w, int h)
 {
   s->win_w = w;
   s->win_h = h;
-  s->margin = 16;
-  s->gap = 12;
-  s->header_h = 44;
-  s->card_y = s->margin + s->header_h;
-  int usable_w = w - s->margin * 2 - s->gap * (PG_CATALOG_COLS - 1);
-  if (usable_w < 120) {
-    usable_w = 120;
+  s->margin = 24;
+  s->gap = 16;
+  s->header_block_h = 72;
+  s->footer_h = 36;
+  s->hover_slot = -1;
+
+  int usable_w = w - s->margin * 2;
+  if (usable_w < 100) {
+    usable_w = 100;
   }
-  s->card_w = usable_w / PG_CATALOG_COLS;
-  int usable_h = h - s->card_y - s->margin - s->gap;
-  if (usable_h < 200) {
-    usable_h = 200;
+  s->cols = catalog_pick_cols(usable_w, s->gap);
+  s->rows = (PG_CATALOG_NUM_GAMES + s->cols - 1) / s->cols;
+
+  float tile_w = ((float)usable_w - (float)(s->cols - 1) * (float)s->gap) / (float)s->cols;
+  if (tile_w < 120.0f) {
+    tile_w = 120.0f;
   }
-  s->card_h = usable_h / 2;
-  for (int c = 0; c < PG_CATALOG_COLS; c++) {
-    s->row0_x[c] = s->margin + c * (s->card_w + s->gap);
+
+  int body_top = s->margin + s->header_block_h;
+  int body_h = h - body_top - s->margin - s->footer_h;
+  if (body_h < 120) {
+    body_h = 120;
   }
-  int row1_w = s->card_w * 2 + s->gap;
-  s->row1_x0 = (w - row1_w) / 2;
-  if (s->row1_x0 < s->margin) {
-    s->row1_x0 = s->margin;
+  s->grid_top = body_top;
+
+  float tile_h = ((float)body_h - (float)(s->rows - 1) * (float)s->gap) / (float)s->rows;
+  if (tile_h < 100.0f) {
+    tile_h = 100.0f;
+  }
+
+  float grid_w = (float)s->cols * tile_w + (float)(s->cols - 1) * (float)s->gap;
+  float x0 = ((float)w - grid_w) * 0.5f;
+  if (x0 < (float)s->margin) {
+    x0 = (float)s->margin;
+  }
+
+  for (int i = 0; i < PG_CATALOG_NUM_GAMES; i++) {
+    int c = i % s->cols;
+    int r = i / s->cols;
+    s->tiles[i].x = x0 + (float)c * (tile_w + (float)s->gap);
+    s->tiles[i].y = (float)s->grid_top + (float)r * (tile_h + (float)s->gap);
+    s->tiles[i].w = tile_w;
+    s->tiles[i].h = tile_h;
   }
 }
 
-static bool catalog_hit_slot(const PgCatalogState *s, float x, float y, int *out_index)
+static bool catalog_point_in_tile(const PgCatalogState *s, float x, float y, int *out_slot)
 {
-  *out_index = -1;
-  float y0 = (float)s->card_y;
-  float y1 = y0 + (float)s->card_h + (float)s->gap;
-
-  if (y >= y0 && y < y0 + (float)s->card_h) {
-    for (int c = 0; c < PG_CATALOG_COLS; c++) {
-      float x0 = (float)s->row0_x[c];
-      if (x >= x0 && x < x0 + (float)s->card_w) {
-        *out_index = c;
-        return *out_index < PG_CATALOG_NUM_GAMES;
-      }
-    }
-    return false;
-  }
-  if (y >= y1 && y < y1 + (float)s->card_h) {
-    for (int c = 0; c < 2; c++) {
-      float x0 = (float)s->row1_x0 + (float)c * (float)(s->card_w + s->gap);
-      if (x >= x0 && x < x0 + (float)s->card_w) {
-        *out_index = PG_CATALOG_COLS + c;
-        return *out_index < PG_CATALOG_NUM_GAMES;
-      }
+  for (int i = 0; i < PG_CATALOG_NUM_GAMES; i++) {
+    const SDL_FRect *rc = &s->tiles[i];
+    if (x >= rc->x && x < rc->x + rc->w && y >= rc->y && y < rc->y + rc->h) {
+      *out_slot = i;
+      return true;
     }
   }
+  *out_slot = -1;
   return false;
 }
 
-static void catalog_start_game(PgCatalogState *s, const PgGameVtable *vt)
+static void catalog_start_game(PgCatalogState *st, const PgGameVtable *vt)
 {
-  PgApp *app = pg_app_from_renderer(s->renderer);
-  if (app == NULL) {
+  PgApp *app = pg_app_from_renderer(st->renderer);
+  if (app == NULL || vt == NULL) {
     return;
   }
   const char *title = "PuzzlesAndGames";
-  if (vt->id != NULL) {
-    if (strcmp(vt->id, "g2048") == 0) {
-      title = "PuzzlesAndGames - 2048";
-    } else if (strcmp(vt->id, "mastermind") == 0) {
-      title = "PuzzlesAndGames - Mastermind";
-    } else if (strcmp(vt->id, "letterlock") == 0) {
-      title = "PuzzlesAndGames - Letterlock";
-    } else if (strcmp(vt->id, "tictactoe") == 0) {
-      title = "PuzzlesAndGames - Tic Tac Toe";
-    } else if (strcmp(vt->id, "slitherlink") == 0) {
-      title = "PuzzlesAndGames - Slitherlink";
+  for (int i = 0; i < PG_CATALOG_NUM_GAMES; i++) {
+    if (kCatalogEntries[i].vt_fn() == vt) {
+      title = kCatalogEntries[i].window_title;
+      break;
     }
   }
   SDL_SetWindowTitle(app->window, title);
@@ -112,48 +140,6 @@ static void catalog_start_game(PgCatalogState *s, const PgGameVtable *vt)
     fprintf(stderr, "catalog: failed to start game %s\n", vt->id != NULL ? vt->id : "?");
     app->running = false;
   }
-}
-
-static const PgGameVtable *catalog_vt_for_slot(int slot)
-{
-  switch (slot) {
-  case 0:
-    return g2048_game_vt();
-  case 1:
-    return mastermind_game_vt();
-  case 2:
-    return letterlock_game_vt();
-  case 3:
-    return tictactoe_game_vt();
-  case 4:
-    return slitherlink_game_vt();
-  default:
-    return NULL;
-  }
-}
-
-static void *catalog_create(SDL_Renderer *renderer)
-{
-  PgCatalogState *s = (PgCatalogState *)SDL_calloc(1, sizeof(PgCatalogState));
-  if (s == NULL) {
-    return NULL;
-  }
-  s->renderer = renderer;
-  int w = 0;
-  int h = 0;
-  SDL_GetRendererOutputSize(renderer, &w, &h);
-  catalog_layout(s, w, h);
-  return s;
-}
-
-static void catalog_destroy(void *state)
-{
-  SDL_free(state);
-}
-
-static void catalog_reset(void *state)
-{
-  (void)state;
 }
 
 static void catalog_mouse_to_logical(SDL_Renderer *r, int wx, int wy, float *lx, float *ly)
@@ -166,6 +152,36 @@ static void catalog_mouse_to_logical(SDL_Renderer *r, int wx, int wy, float *lx,
   SDL_RenderWindowToLogical(r, (float)wx, (float)wy, lx, ly);
 }
 
+static void *catalog_create(SDL_Renderer *renderer)
+{
+  if (!pg_text_ref()) {
+    return NULL;
+  }
+  PgCatalogState *s = (PgCatalogState *)SDL_calloc(1, sizeof(PgCatalogState));
+  if (s == NULL) {
+    pg_text_unref();
+    return NULL;
+  }
+  s->renderer = renderer;
+  s->hover_slot = -1;
+  int w = 0;
+  int h = 0;
+  SDL_GetRendererOutputSize(renderer, &w, &h);
+  catalog_layout(s, w, h);
+  return s;
+}
+
+static void catalog_destroy(void *state)
+{
+  SDL_free(state);
+  pg_text_unref();
+}
+
+static void catalog_reset(void *state)
+{
+  (void)state;
+}
+
 static void catalog_on_event(void *state, const SDL_Event *event)
 {
   PgCatalogState *s = (PgCatalogState *)state;
@@ -176,16 +192,25 @@ static void catalog_on_event(void *state, const SDL_Event *event)
     }
     return;
   }
+  if (event->type == SDL_MOUSEMOTION) {
+    float lx;
+    float ly;
+    catalog_mouse_to_logical(s->renderer, event->motion.x, event->motion.y, &lx, &ly);
+    int slot = -1;
+    if (catalog_point_in_tile(s, lx, ly, &slot)) {
+      s->hover_slot = slot;
+    } else {
+      s->hover_slot = -1;
+    }
+    return;
+  }
   if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
     float lx;
     float ly;
     catalog_mouse_to_logical(s->renderer, event->button.x, event->button.y, &lx, &ly);
     int slot = -1;
-    if (catalog_hit_slot(s, lx, ly, &slot)) {
-      const PgGameVtable *vt = catalog_vt_for_slot(slot);
-      if (vt != NULL) {
-        catalog_start_game(s, vt);
-      }
+    if (catalog_point_in_tile(s, lx, ly, &slot) && slot >= 0 && slot < PG_CATALOG_NUM_GAMES) {
+      catalog_start_game(s, kCatalogEntries[slot].vt_fn());
     }
     return;
   }
@@ -212,11 +237,8 @@ static void catalog_on_event(void *state, const SDL_Event *event)
   } else if (k == SDLK_5 || k == SDLK_KP_5) {
     n = 4;
   }
-  if (n >= 0) {
-    const PgGameVtable *vt = catalog_vt_for_slot(n);
-    if (vt != NULL) {
-      catalog_start_game(s, vt);
-    }
+  if (n >= 0 && n < PG_CATALOG_NUM_GAMES) {
+    catalog_start_game(s, kCatalogEntries[n].vt_fn());
   }
 }
 
@@ -226,59 +248,75 @@ static void catalog_update(void *state, float dt_seconds)
   (void)dt_seconds;
 }
 
-static void catalog_draw_card(SDL_Renderer *r, const SDL_FRect *rect, SDL_Color fill, SDL_Color border)
+static void catalog_draw_tile_frame(SDL_Renderer *r, const SDL_FRect *rect, float stroke_px, SDL_Color border)
 {
-  SDL_SetRenderDrawColor(r, fill.r, fill.g, fill.b, fill.a);
-  SDL_RenderFillRectF(r, rect);
+  SDL_FRect inner = *rect;
+  float inset = stroke_px * 0.5f;
+  inner.x += inset;
+  inner.y += inset;
+  inner.w = fmaxf(1.0f, inner.w - stroke_px);
+  inner.h = fmaxf(1.0f, inner.h - stroke_px);
   SDL_SetRenderDrawColor(r, border.r, border.g, border.b, border.a);
-  SDL_RenderDrawRectF(r, rect);
+  SDL_RenderDrawRectF(r, &inner);
 }
 
 static void catalog_render(void *state, SDL_Renderer *renderer)
 {
   PgCatalogState *s = (PgCatalogState *)state;
-  SDL_SetRenderDrawColor(renderer, 0x2A, 0x28, 0x26, 255);
-  SDL_RenderClear(renderer);
+  pg_theme_clear_paper(renderer);
 
-  SDL_Color fills[PG_CATALOG_NUM_GAMES] = {
-      {0x5C, 0x56, 0x4F, 255},
-      {0x4A, 0x52, 0x5C, 255},
-      {0x4A, 0x5C, 0x52, 255},
-      {0x5C, 0x4E, 0x4A, 255},
-      {0x52, 0x4A, 0x5C, 255},
-  };
+  SDL_Color ink = PG_COLOR_INK;
+  SDL_Color muted = PG_COLOR_INK_MUTED;
+  SDL_FRect title_box;
+  title_box.x = (float)s->margin;
+  title_box.y = (float)s->margin;
+  title_box.w = (float)(s->win_w - s->margin * 2);
+  title_box.h = 40.0f;
+  pg_text_draw_utf8_centered(renderer, &title_box, "Choose a game", ink);
 
-  SDL_Color border = {0xD0, 0xC8, 0xBC, 255};
-  SDL_Color ink = {0xFA, 0xF6, 0xF0, 255};
-  float digit_px = 6.0f;
-  float dw = 6.0f * digit_px;
+  SDL_FRect sub_box = title_box;
+  sub_box.y += 36.0f;
+  sub_box.h = 28.0f;
+  pg_text_draw_utf8_centered(renderer, &sub_box, "Click a tile or press a number key", muted);
 
-  for (int slot = 0; slot < PG_CATALOG_NUM_GAMES; slot++) {
-    SDL_FRect rc;
-    if (slot < PG_CATALOG_COLS) {
-      rc.x = (float)s->row0_x[slot];
-      rc.y = (float)s->card_y;
-    } else {
-      rc.x = (float)s->row1_x0 + (float)(slot - PG_CATALOG_COLS) * (float)(s->card_w + s->gap);
-      rc.y = (float)s->card_y + (float)s->card_h + (float)s->gap;
-    }
-    rc.w = (float)s->card_w;
-    rc.h = (float)s->card_h;
-    catalog_draw_card(renderer, &rc, fills[slot], border);
-    pg_digits_draw_uint(
-        renderer,
-        rc.x + (rc.w - dw) * 0.5f,
-        rc.y + (rc.h - 7.0f * digit_px) * 0.5f,
-        digit_px,
-        (uint32_t)(slot + 1),
-        ink);
+  for (int i = 0; i < PG_CATALOG_NUM_GAMES; i++) {
+    const SDL_FRect *rc = &s->tiles[i];
+    bool hover = (i == s->hover_slot);
+    SDL_Color fill = hover ? PG_COLOR_SURFACE_STRONG : PG_COLOR_SURFACE;
+    SDL_Color border = hover ? PG_COLOR_INK_MUTED : PG_COLOR_RULE;
+    SDL_SetRenderDrawColor(renderer, fill.r, fill.g, fill.b, fill.a);
+    SDL_RenderFillRectF(renderer, rc);
+    float stroke = pg_theme_stroke_px(fminf(rc->w, rc->h), hover ? 0.022f : 0.014f);
+    catalog_draw_tile_frame(renderer, rc, stroke, border);
+
+    char hint[8];
+    SDL_snprintf(hint, sizeof(hint), "%u", (unsigned)(i + 1));
+    float key_h = fminf(22.0f, rc->h * 0.18f);
+    pg_text_draw_utf8(renderer, rc->x + 10.0f, rc->y + 8.0f, key_h, hint, PG_COLOR_INK_FAINT);
+
+    SDL_FRect label_rc = *rc;
+    float pad = fmaxf(8.0f, rc->h * 0.06f);
+    label_rc.x += pad;
+    label_rc.y += rc->h * 0.28f;
+    label_rc.w = rc->w - pad * 2.0f;
+    label_rc.h = rc->h * 0.62f;
+    pg_text_draw_utf8_centered(renderer, &label_rc, kCatalogEntries[i].label, ink);
   }
+
+  SDL_FRect foot;
+  foot.x = (float)s->margin;
+  foot.y = (float)(s->win_h - s->margin - s->footer_h + 4);
+  foot.w = (float)(s->win_w - s->margin * 2);
+  foot.h = (float)s->footer_h;
+  pg_text_draw_utf8_centered(renderer, &foot, "Esc in a game returns here", muted);
 }
 
 static void catalog_resize(void *state, int width_px, int height_px)
 {
   PgCatalogState *s = (PgCatalogState *)state;
+  int keep_hover = s->hover_slot;
   catalog_layout(s, width_px, height_px);
+  s->hover_slot = keep_hover;
 }
 
 static const PgGameVtable kCatalogVt = {
