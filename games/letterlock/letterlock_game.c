@@ -3,11 +3,15 @@
 #include "letterlock_glyphs.h"
 #include "letterlock_puzzle.h"
 
+#include "pg/app.h"
+#include "pg/catalog/pg_catalog.h"
+
 #include <SDL.h>
 
 #include <string.h>
 
 typedef struct LetterlockGame {
+  SDL_Renderer *renderer;
   LetterlockPuzzle puzzle;
   int win_w;
   int win_h;
@@ -302,6 +306,7 @@ static void *letterlock_create(SDL_Renderer *renderer)
   if (g == NULL) {
     return NULL;
   }
+  g->renderer = renderer;
   int w = 0;
   int h = 0;
   SDL_GetRendererOutputSize(renderer, &w, &h);
@@ -333,6 +338,16 @@ static void letterlock_on_event(void *state, const SDL_Event *event)
     return;
   }
   const SDL_Keycode k = event->key.keysym.sym;
+  if (k == SDLK_ESCAPE) {
+    PgApp *app = pg_app_from_renderer(g->renderer);
+    if (app != NULL) {
+      SDL_SetWindowTitle(app->window, "PuzzlesAndGames");
+      if (!pg_app_replace_game(app, pg_catalog_game_vt())) {
+        app->running = false;
+      }
+    }
+    return;
+  }
   if (k == SDLK_r) {
     letterlock_reset_cb(g);
     return;
