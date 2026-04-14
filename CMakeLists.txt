@@ -39,11 +39,27 @@ else()
   FetchContent_MakeAvailable(SDL2)
 endif()
 
+set(SDL2TTF_VENDORED ON CACHE BOOL "" FORCE)
+set(SDL2TTF_SAMPLES OFF CACHE BOOL "" FORCE)
+set(SDL2TTF_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  SDL2_ttf
+  URL https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.22.0/SDL2_ttf-2.22.0.tar.gz
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(SDL2_ttf)
+
 add_library(pg_core STATIC
   src/core/pg_digits.c
+  src/core/pg_text.c
 )
 target_include_directories(pg_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(pg_core PUBLIC SDL2::SDL2)
+target_link_libraries(pg_core PUBLIC SDL2::SDL2 SDL2_ttf::SDL2_ttf)
+target_compile_definitions(
+  pg_core
+  PRIVATE
+  "PG_ASSET_ROOT=\"${CMAKE_SOURCE_DIR}\""
+)
 
 add_library(pg_shell STATIC
   src/shell/pg_app.c

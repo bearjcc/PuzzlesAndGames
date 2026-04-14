@@ -1,10 +1,11 @@
 #include "g2048_game.h"
 
 #include "g2048_board.h"
-#include "pg/digits.h"
+#include "pg/text.h"
 
 #include <SDL.h>
 
+#include <stdbool.h>
 #include <math.h>
 #include <string.h>
 
@@ -141,17 +142,17 @@ static void g2048_draw_tile_value(SDL_Renderer *r, const G2048Game *g, const SDL
   g2048_tile_colors(value, &bg, &fg);
   g2048_draw_round_fill(r, cell, bg, 4.0f);
 
-  float px = (float)g->cell_px * 0.11f;
-  if (px < 2.0f) {
-    px = 2.0f;
+  (void)g;
+  SDL_FRect inner;
+  float pad = fmaxf(3.0f, cell->w * 0.06f);
+  inner.x = cell->x + pad;
+  inner.y = cell->y + pad;
+  inner.w = cell->w - pad * 2.0f;
+  inner.h = cell->h - pad * 2.0f;
+  if (inner.w < 4.0f || inner.h < 4.0f) {
+    return;
   }
-  if (value >= 1000) {
-    px *= 0.85f;
-  }
-  float text_w = 6.0f * px * 4.0f;
-  float x = cell->x + (cell->w - text_w) * 0.5f;
-  float y = cell->y + (cell->h - 7.0f * px) * 0.5f;
-  pg_digits_draw_uint(r, x, y, px, (uint32_t)value, fg);
+  pg_text_draw_uint_centered(r, &inner, (uint32_t)value, fg);
 }
 
 static void g2048_begin_pulse_from_sprites(G2048Game *g)
@@ -231,6 +232,10 @@ static void *g2048_create(SDL_Renderer *renderer)
   if (g == NULL) {
     return NULL;
   }
+  if (!pg_text_ref()) {
+    SDL_free(g);
+    return NULL;
+  }
   uint32_t seed = (uint32_t)SDL_GetTicks();
   g2048_reset(g, seed == 0u ? 1u : seed);
   int w = 0;
@@ -242,6 +247,7 @@ static void *g2048_create(SDL_Renderer *renderer)
 
 static void g2048_destroy(void *state)
 {
+  pg_text_unref();
   SDL_free(state);
 }
 
@@ -347,25 +353,20 @@ static void g2048_render_static(SDL_Renderer *r, G2048Game *g)
 static void g2048_render_hud(SDL_Renderer *r, G2048Game *g)
 {
   SDL_Color ink = {0x77, 0x6E, 0x65, 255};
-  float score_px = 3.4f;
   float x = 28.0f;
-  float y = 20.0f;
-  pg_digits_draw_uint(r, x, y, score_px, (uint32_t)g->board.score, ink);
+  float y = 18.0f;
+  float row_h = 30.0f;
+  pg_text_draw_uint(r, x, y, row_h, (uint32_t)g->board.score, ink);
 
-  float title_px = 3.0f;
-  float title_x = x + 6.0f * score_px * 7.0f + 48.0f;
-  float step = 6.0f * title_px;
+  float title_x = x + 200.0f;
   SDL_FRect tag;
-  tag.x = title_x - 10.0f;
+  tag.x = title_x - 12.0f;
   tag.y = y - 6.0f;
-  tag.w = step * 4.0f + 28.0f;
-  tag.h = 7.0f * title_px + 12.0f;
+  tag.w = 112.0f;
+  tag.h = row_h + 12.0f;
   SDL_SetRenderDrawColor(r, 0xBB, 0xAD, 0xA0, 255);
   SDL_RenderFillRectF(r, &tag);
-  pg_digits_draw_uint(r, title_x + 0.0f * step, y, title_px, 2u, ink);
-  pg_digits_draw_uint(r, title_x + 1.0f * step, y, title_px, 0u, ink);
-  pg_digits_draw_uint(r, title_x + 2.0f * step, y, title_px, 4u, ink);
-  pg_digits_draw_uint(r, title_x + 3.0f * step, y, title_px, 8u, ink);
+  pg_text_draw_utf8(r, title_x, y, row_h, "2048", ink);
 }
 
 static void g2048_render(void *state, SDL_Renderer *renderer)
@@ -410,13 +411,16 @@ static void g2048_render(void *state, SDL_Renderer *renderer)
     SDL_RenderFillRectF(renderer, &dim);
     float cx = (float)ww * 0.5f;
     float cy = (float)hh * 0.48f;
-    float big = 4.2f;
-    float text_w = 6.0f * big * 6.0f;
-    pg_digits_draw_uint(
+    float box_w = fminf((float)ww * 0.85f, 520.0f);
+    float box_h = 72.0f;
+    SDL_FRect score_box;
+    score_box.x = cx - box_w * 0.5f;
+    score_box.y = cy;
+    score_box.w = box_w;
+    score_box.h = box_h;
+    pg_text_draw_uint_centered(
         renderer,
-        cx - text_w * 0.5f,
-        cy,
-        big,
+        &score_box,
         (uint32_t)g->board.score,
         (SDL_Color){250, 248, 240, 255});
   }
