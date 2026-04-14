@@ -4,7 +4,6 @@
 #include "pg/text.h"
 #include "pg/theme.h"
 
-#include "pg/app.h"
 #include "pg/catalog/pg_catalog.h"
 
 #include <SDL.h>
@@ -311,13 +310,7 @@ static void letterlock_on_event(void *state, const SDL_Event *event)
   }
   const SDL_Keycode k = event->key.keysym.sym;
   if (k == SDLK_ESCAPE) {
-    PgApp *app = pg_app_from_renderer(g->renderer);
-    if (app != NULL) {
-      SDL_SetWindowTitle(app->window, "PuzzlesAndGames");
-      if (!pg_app_replace_game(app, pg_catalog_game_vt())) {
-        app->running = false;
-      }
-    }
+    (void)pg_catalog_launch_from_renderer(g->renderer);
     return;
   }
   if (k == SDLK_r) {

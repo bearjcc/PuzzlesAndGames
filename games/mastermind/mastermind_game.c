@@ -1,7 +1,6 @@
 #include "mastermind_game.h"
 
 #include "mastermind_logic.h"
-#include "pg/app.h"
 #include "pg/catalog/pg_catalog.h"
 #include "pg/digits.h"
 
@@ -118,12 +117,7 @@ static void mm_reset(MmUi *u, uint32_t seed)
 
 static void mm_mouse_to_logical(const MmUi *u, int window_x, int window_y, float *lx, float *ly)
 {
-  if (u->renderer == NULL) {
-    *lx = (float)window_x;
-    *ly = (float)window_y;
-    return;
-  }
-  SDL_RenderWindowToLogical(u->renderer, (float)window_x, (float)window_y, lx, ly);
+  pg_sdl_window_to_logical(u->renderer, window_x, window_y, lx, ly);
 }
 
 /* Sets *out_value to 0 (blank) or 1..ncolours. *out_value = -1 if no hit. */
@@ -239,13 +233,7 @@ static void mm_on_event(void *state, const SDL_Event *event)
   }
   const SDL_Keycode k = event->key.keysym.sym;
   if (k == SDLK_ESCAPE) {
-    PgApp *app = pg_app_from_renderer(u->renderer);
-    if (app != NULL) {
-      SDL_SetWindowTitle(app->window, "PuzzlesAndGames");
-      if (!pg_app_replace_game(app, pg_catalog_game_vt())) {
-        app->running = false;
-      }
-    }
+    (void)pg_catalog_launch_from_renderer(u->renderer);
     return;
   }
   if (k == SDLK_r) {
