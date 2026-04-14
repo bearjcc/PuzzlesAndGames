@@ -66,6 +66,20 @@ bool pg_app_init(PgApp *app, const char *title, int width, int height, const PgG
   return true;
 }
 
+void pg_sdl_window_to_logical(SDL_Renderer *renderer, int window_x, int window_y, float *out_lx, float *out_ly)
+{
+  if (renderer == NULL || out_lx == NULL || out_ly == NULL) {
+    if (out_lx != NULL) {
+      *out_lx = (float)window_x;
+    }
+    if (out_ly != NULL) {
+      *out_ly = (float)window_y;
+    }
+    return;
+  }
+  SDL_RenderWindowToLogical(renderer, (float)window_x, (float)window_y, out_lx, out_ly);
+}
+
 PgApp *pg_app_from_renderer(SDL_Renderer *renderer)
 {
   if (renderer == NULL) {

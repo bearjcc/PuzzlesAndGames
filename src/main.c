@@ -1,10 +1,5 @@
-#include "g2048_game.h"
-#include "letterlock_game.h"
-#include "mastermind_game.h"
 #include "slitherlink_game.h"
-#include "tictactoe_game.h"
 
-#include "pg/app.h"
 #include "pg/catalog/pg_catalog.h"
 
 #include <stdio.h>
@@ -51,31 +46,18 @@ int main(int argc, char **argv)
       print_usage(argv[0]);
       return 0;
     }
-    if (strcmp(argv[1], "2048") == 0 || strcmp(argv[1], "g2048") == 0) {
-      vt = g2048_game_vt();
-      title = "PuzzlesAndGames - 2048";
-      win_w = 720;
-      win_h = 820;
-    } else if (strcmp(argv[1], "mastermind") == 0 || strcmp(argv[1], "mm") == 0) {
-      vt = mastermind_game_vt();
-      title = "PuzzlesAndGames - Mastermind";
-      win_w = 720;
-      win_h = 820;
-    } else if (strcmp(argv[1], "letterlock") == 0) {
-      vt = letterlock_game_vt();
-      title = "PuzzlesAndGames - Letterlock";
-      win_w = 780;
-      win_h = 620;
-    } else if (strcmp(argv[1], "tictactoe") == 0) {
-      vt = tictactoe_game_vt();
-      title = "PuzzlesAndGames - Tic Tac Toe";
-      win_w = 640;
-      win_h = 720;
-    } else if (strcmp(argv[1], "slitherlink") == 0 || strcmp(argv[1], "loopy") == 0) {
-      vt = slitherlink_game_vt();
-      title = "PuzzlesAndGames - Slitherlink";
-      win_w = 900;
-      win_h = 820;
+    const PgCatalogGameSpec *spec = pg_catalog_find_game_by_cli_name(argv[1]);
+    if (spec != NULL) {
+      vt = spec->vt_fn();
+      title = spec->window_title;
+      win_w = spec->default_win_w;
+      win_h = spec->default_win_h;
+    } else {
+      fprintf(stderr, "Unknown game: %s\n", argv[1]);
+      print_usage(argv[0]);
+      return 2;
+    }
+    if (vt == slitherlink_game_vt()) {
       for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--rect") == 0) {
           sl_shape = SL_SHAPE_RECT;
@@ -105,10 +87,6 @@ int main(int argc, char **argv)
           return 2;
         }
       }
-    } else {
-      fprintf(stderr, "Unknown game: %s\n", argv[1]);
-      print_usage(argv[0]);
-      return 2;
     }
   }
 

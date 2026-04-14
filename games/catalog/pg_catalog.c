@@ -6,7 +6,6 @@
 #include "slitherlink_game.h"
 #include "tictactoe_game.h"
 
-#include "pg/app.h"
 #include "pg/text.h"
 #include "pg/theme.h"
 
@@ -16,21 +15,25 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PG_CATALOG_NUM_GAMES 5
+/* #region Game table (CLI + menu + window title) */
 
-typedef struct PgCatalogEntry {
-  const PgGameVtable *(*vt_fn)(void);
-  const char *window_title;
-  const char *label;
-} PgCatalogEntry;
+static const char *kCliG2048[] = {"2048", "g2048", NULL};
+static const char *kCliMastermind[] = {"mastermind", "mm", NULL};
+static const char *kCliLetterlock[] = {"letterlock", NULL};
+static const char *kCliTictactoe[] = {"tictactoe", NULL};
+static const char *kCliSlitherlink[] = {"slitherlink", "loopy", NULL};
 
-static const PgCatalogEntry kCatalogEntries[PG_CATALOG_NUM_GAMES] = {
-    {g2048_game_vt, "PuzzlesAndGames - 2048", "2048"},
-    {mastermind_game_vt, "PuzzlesAndGames - Mastermind", "Mastermind"},
-    {letterlock_game_vt, "PuzzlesAndGames - Letterlock", "Letterlock"},
-    {tictactoe_game_vt, "PuzzlesAndGames - Tic Tac Toe", "Tic-tac-toe"},
-    {slitherlink_game_vt, "PuzzlesAndGames - Slitherlink", "Slitherlink"},
+static const PgCatalogGameSpec kCatalogGames[] = {
+    {kCliG2048, g2048_game_vt, "PuzzlesAndGames - 2048", "2048", 720, 820},
+    {kCliMastermind, mastermind_game_vt, "PuzzlesAndGames - Mastermind", "Mastermind", 720, 820},
+    {kCliLetterlock, letterlock_game_vt, "PuzzlesAndGames - Letterlock", "Letterlock", 780, 620},
+    {kCliTictactoe, tictactoe_game_vt, "PuzzlesAndGames - Tic Tac Toe", "Tic-tac-toe", 640, 720},
+    {kCliSlitherlink, slitherlink_game_vt, "PuzzlesAndGames - Slitherlink", "Slitherlink", 900, 820},
 };
+
+enum { PG_CATALOG_NUM_GAMES = (int)(sizeof(kCatalogGames) / sizeof(kCatalogGames[0])) };
+
+/* #endregion */
 
 typedef struct PgCatalogState {
   SDL_Renderer *renderer;
@@ -45,6 +48,56 @@ typedef struct PgCatalogState {
   SDL_FRect tiles[PG_CATALOG_NUM_GAMES];
   int hover_slot;
 } PgCatalogState;
+
+int pg_catalog_game_count(void)
+{
+  return PG_CATALOG_NUM_GAMES;
+}
+
+const PgCatalogGameSpec *pg_catalog_game_spec(int index)
+{
+  if (index < 0 || index >= PG_CATALOG_NUM_GAMES) {
+    return NULL;
+  }
+  return &kCatalogGames[index];
+}
+
+const PgCatalogGameSpec *pg_catalog_find_game_by_cli_name(const char *name)
+{
+  if (name == NULL) {
+    return NULL;
+  }
+  for (int g = 0; g < PG_CATALOG_NUM_GAMES; g++) {
+    for (const char *const *p = kCatalogGames[g].cli_names; p != NULL && *p != NULL; p++) {
+      if (strcmp(name, *p) == 0) {
+        return &kCatalogGames[g];
+      }
+    }
+  }
+  return NULL;
+}
+
+bool pg_catalog_launch(PgApp *app)
+{
+  if (app == NULL || app->window == NULL) {
+    return false;
+  }
+  SDL_SetWindowTitle(app->window, "PuzzlesAndGames");
+  if (!pg_app_replace_game(app, pg_catalog_game_vt())) {
+    app->running = false;
+    return false;
+  }
+  return true;
+}
+
+bool pg_catalog_launch_from_renderer(SDL_Renderer *renderer)
+{
+  PgApp *app = pg_app_from_renderer(renderer);
+  if (app == NULL) {
+    return false;
+  }
+  return pg_catalog_launch(app);
+}
 
 static int catalog_pick_cols(int usable_w, int gap)
 {
@@ -120,34 +173,54 @@ static bool catalog_point_in_tile(const PgCatalogState *s, float x, float y, int
   return false;
 }
 
-static void catalog_start_game(PgCatalogState *st, const PgGameVtable *vt)
+static void catalog_start_game_at(PgCatalogState *st, int game_index)
 {
-  PgApp *app = pg_app_from_renderer(st->renderer);
-  if (app == NULL || vt == NULL) {
+  if (game_index < 0 || game_index >= PG_CATALOG_NUM_GAMES) {
     return;
   }
-  const char *title = "PuzzlesAndGames";
-  for (int i = 0; i < PG_CATALOG_NUM_GAMES; i++) {
-    if (kCatalogEntries[i].vt_fn() == vt) {
-      title = kCatalogEntries[i].window_title;
-      break;
-    }
+  const PgCatalogGameSpec *spec = &kCatalogGames[game_index];
+  PgApp *app = pg_app_from_renderer(st->renderer);
+  if (app == NULL) {
+    return;
   }
-  SDL_SetWindowTitle(app->window, title);
+  const PgGameVtable *vt = spec->vt_fn();
+  SDL_SetWindowTitle(app->window, spec->window_title);
   if (!pg_app_replace_game(app, vt)) {
     fprintf(stderr, "catalog: failed to start game %s\n", vt->id != NULL ? vt->id : "?");
     app->running = false;
   }
 }
 
-static void catalog_mouse_to_logical(SDL_Renderer *r, int wx, int wy, float *lx, float *ly)
+static int catalog_digit_key_slot(SDL_Keycode k)
 {
-  if (r == NULL) {
-    *lx = (float)wx;
-    *ly = (float)wy;
-    return;
+  if (k == SDLK_1 || k == SDLK_KP_1) {
+    return 0;
   }
-  SDL_RenderWindowToLogical(r, (float)wx, (float)wy, lx, ly);
+  if (k == SDLK_2 || k == SDLK_KP_2) {
+    return 1;
+  }
+  if (k == SDLK_3 || k == SDLK_KP_3) {
+    return 2;
+  }
+  if (k == SDLK_4 || k == SDLK_KP_4) {
+    return 3;
+  }
+  if (k == SDLK_5 || k == SDLK_KP_5) {
+    return 4;
+  }
+  if (k == SDLK_6 || k == SDLK_KP_6) {
+    return 5;
+  }
+  if (k == SDLK_7 || k == SDLK_KP_7) {
+    return 6;
+  }
+  if (k == SDLK_8 || k == SDLK_KP_8) {
+    return 7;
+  }
+  if (k == SDLK_9 || k == SDLK_KP_9) {
+    return 8;
+  }
+  return -1;
 }
 
 static void *catalog_create(SDL_Renderer *renderer)
@@ -193,7 +266,7 @@ static void catalog_on_event(void *state, const SDL_Event *event)
   if (event->type == SDL_MOUSEMOTION) {
     float lx;
     float ly;
-    catalog_mouse_to_logical(s->renderer, event->motion.x, event->motion.y, &lx, &ly);
+    pg_sdl_window_to_logical(s->renderer, event->motion.x, event->motion.y, &lx, &ly);
     int slot = -1;
     if (catalog_point_in_tile(s, lx, ly, &slot)) {
       s->hover_slot = slot;
@@ -205,10 +278,10 @@ static void catalog_on_event(void *state, const SDL_Event *event)
   if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
     float lx;
     float ly;
-    catalog_mouse_to_logical(s->renderer, event->button.x, event->button.y, &lx, &ly);
+    pg_sdl_window_to_logical(s->renderer, event->button.x, event->button.y, &lx, &ly);
     int slot = -1;
     if (catalog_point_in_tile(s, lx, ly, &slot) && slot >= 0 && slot < PG_CATALOG_NUM_GAMES) {
-      catalog_start_game(s, kCatalogEntries[slot].vt_fn());
+      catalog_start_game_at(s, slot);
     }
     return;
   }
@@ -223,20 +296,9 @@ static void catalog_on_event(void *state, const SDL_Event *event)
     }
     return;
   }
-  int n = -1;
-  if (k == SDLK_1 || k == SDLK_KP_1) {
-    n = 0;
-  } else if (k == SDLK_2 || k == SDLK_KP_2) {
-    n = 1;
-  } else if (k == SDLK_3 || k == SDLK_KP_3) {
-    n = 2;
-  } else if (k == SDLK_4 || k == SDLK_KP_4) {
-    n = 3;
-  } else if (k == SDLK_5 || k == SDLK_KP_5) {
-    n = 4;
-  }
+  int n = catalog_digit_key_slot(k);
   if (n >= 0 && n < PG_CATALOG_NUM_GAMES) {
-    catalog_start_game(s, kCatalogEntries[n].vt_fn());
+    catalog_start_game_at(s, n);
   }
 }
 
@@ -298,7 +360,7 @@ static void catalog_render(void *state, SDL_Renderer *renderer)
     label_rc.y += rc->h * 0.28f;
     label_rc.w = rc->w - pad * 2.0f;
     label_rc.h = rc->h * 0.62f;
-    pg_text_draw_utf8_centered(renderer, &label_rc, kCatalogEntries[i].label, ink);
+    pg_text_draw_utf8_centered(renderer, &label_rc, kCatalogGames[i].menu_label, ink);
   }
 
   SDL_FRect foot;
