@@ -32,6 +32,13 @@ SDL2 is pulled via `FetchContent` into your build tree (for example `build/_deps
 
 ## Current games
 
+### Tic Tac Toe (`games/tictactoe`)
+
+- **Run**: `./build/puzzlesgames tictactoe` (after building).
+- **Play**: you are **X**, the computer is **O**. Click an empty square to move.
+- **AI**: **Easy** (random legal moves), **Medium** (mix of random and optimal), **Impossible** (minimax, cannot lose). Switch with the on-screen buttons or keys **1**, **2**, **3**.
+- **New game**: **R**, or **Enter** / **Space** after a finished game.
+
 ### 2048 (`games/g2048`)
 
 - **Product direction**: independent **board width and height** (and other rule knobs) are a first-class goal; see [PRD.md](PRD.md) requirement on per-game configuration. Until the shell exposes a full Configure flow, play may use a fixed default grid.

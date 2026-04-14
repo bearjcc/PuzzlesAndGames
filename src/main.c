@@ -1,5 +1,6 @@
 #include "g2048_game.h"
 #include "letterlock_game.h"
+#include "tictactoe_game.h"
 #include "pg/app.h"
 
 #include <string.h>
@@ -16,6 +17,11 @@ int main(int argc, char **argv)
     title = "PuzzlesAndGames - Letterlock";
     win_w = 780;
     win_h = 620;
+  } else if (argc >= 2 && strcmp(argv[1], "tictactoe") == 0) {
+    vt = tictactoe_game_vt();
+    title = "PuzzlesAndGames - Tic Tac Toe";
+    win_w = 640;
+    win_h = 720;
   }
 
   PgApp app;
