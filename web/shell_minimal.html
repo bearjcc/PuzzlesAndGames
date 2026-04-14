@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PuzzlesAndGames</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1a1a1a; }
+    /* No border or padding on canvas: mouse coordinates must match SDL. */
+    canvas.emscripten { border: 0; display: block; margin: 0 auto; background: #000; }
+  </style>
+</head>
+<body>
+  <canvas class="emscripten" id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+  <script>
+    var Module = {
+      canvas: document.getElementById("canvas")
+    };
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
+# SDL2_ttf vendors FreeType with an old cmake_minimum_required; satisfy CMake 4.x policy checks on subprojects.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.31")
+  set(CMAKE_POLICY_VERSION_MINIMUM "3.5" CACHE STRING "" FORCE)
+endif()
+
 project(PuzzlesAndGames C)
 
 set(CMAKE_C_STANDARD 11)
@@ -9,45 +14,68 @@ option(PG_BUILD_TESTS "Build unit test executables" ON)
 
 include(FetchContent)
 
-set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
-set(SDL2_DISABLE_UNINSTALL ON CACHE BOOL "" FORCE)
-set(SDL_SHARED ON CACHE BOOL "" FORCE)
-
-set(PG_SDL2_ARCHIVE "${CMAKE_SOURCE_DIR}/third_party/SDL2-2.30.10.tar.gz")
-get_filename_component(PG_SDL2_ABS "${PG_SDL2_ARCHIVE}" ABSOLUTE)
-if(EXISTS "${PG_SDL2_ABS}")
-  # Prefer a local archive: reliable on Windows and avoids TLS trust issues in some bundled curl setups.
-  set(PG_SDL2_ROOT "${CMAKE_BINARY_DIR}/_deps/SDL2-2.30.10")
-  if(NOT EXISTS "${PG_SDL2_ROOT}/CMakeLists.txt")
-    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps")
-    execute_process(
-      COMMAND "${CMAKE_COMMAND}" -E tar xf "${PG_SDL2_ABS}"
-      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/_deps"
-      RESULT_VARIABLE PG_SDL2_EXTRACT_RESULT
-    )
-    if(NOT PG_SDL2_EXTRACT_RESULT EQUAL 0)
-      message(FATAL_ERROR "Failed to extract SDL2 archive: ${PG_SDL2_ABS}")
-    endif()
+# Emscripten ships SDL ports (-sUSE_SDL=2, -sUSE_SDL_TTF=2); avoid FetchContent SDL here so CMake does not force
+# shared SDL2_ttf on a platform with no shared libraries (breaks TARGET_SONAME_FILE_NAME generator expressions).
+if(EMSCRIPTEN)
+  if(NOT TARGET SDL2_emscripten_port)
+    add_library(SDL2_emscripten_port INTERFACE)
+    target_compile_options(SDL2_emscripten_port INTERFACE "SHELL:-sUSE_SDL=2")
+    target_link_options(SDL2_emscripten_port INTERFACE "SHELL:-sUSE_SDL=2")
+    add_library(SDL2::SDL2 ALIAS SDL2_emscripten_port)
   endif()
-  add_subdirectory("${PG_SDL2_ROOT}" "${CMAKE_BINARY_DIR}/_deps/sdl2-build")
+  if(NOT TARGET SDL2_emscripten_main_stub)
+    add_library(SDL2_emscripten_main_stub INTERFACE)
+    add_library(SDL2::SDL2main ALIAS SDL2_emscripten_main_stub)
+  endif()
+  if(NOT TARGET SDL2_ttf_emscripten_port)
+    add_library(SDL2_ttf_emscripten_port INTERFACE)
+    target_compile_options(SDL2_ttf_emscripten_port INTERFACE "SHELL:-sUSE_SDL_TTF=2")
+    target_link_options(SDL2_ttf_emscripten_port INTERFACE "SHELL:-sUSE_SDL_TTF=2")
+    add_library(SDL2_ttf::SDL2_ttf ALIAS SDL2_ttf_emscripten_port)
+  endif()
 else()
-  FetchContent_Declare(
-    SDL2
-    URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-  )
-  FetchContent_MakeAvailable(SDL2)
+  set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
+  set(SDL2_DISABLE_UNINSTALL ON CACHE BOOL "" FORCE)
+  set(SDL_SHARED ON CACHE BOOL "" FORCE)
+
+  set(PG_SDL2_ARCHIVE "${CMAKE_SOURCE_DIR}/third_party/SDL2-2.30.10.tar.gz")
+  get_filename_component(PG_SDL2_ABS "${PG_SDL2_ARCHIVE}" ABSOLUTE)
+  if(EXISTS "${PG_SDL2_ABS}")
+    # Prefer a local archive: reliable on Windows and avoids TLS trust issues in some bundled curl setups.
+    set(PG_SDL2_ROOT "${CMAKE_BINARY_DIR}/_deps/SDL2-2.30.10")
+    if(NOT EXISTS "${PG_SDL2_ROOT}/CMakeLists.txt")
+      file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps")
+      execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E tar xf "${PG_SDL2_ABS}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/_deps"
+        RESULT_VARIABLE PG_SDL2_EXTRACT_RESULT
+      )
+      if(NOT PG_SDL2_EXTRACT_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to extract SDL2 archive: ${PG_SDL2_ABS}")
+      endif()
+    endif()
+    add_subdirectory("${PG_SDL2_ROOT}" "${CMAKE_BINARY_DIR}/_deps/sdl2-build")
+  else()
+    FetchContent_Declare(
+      SDL2
+      URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz
+      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(SDL2)
+  endif()
 endif()
 
-set(SDL2TTF_VENDORED ON CACHE BOOL "" FORCE)
-set(SDL2TTF_SAMPLES OFF CACHE BOOL "" FORCE)
-set(SDL2TTF_INSTALL OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(
-  SDL2_ttf
-  URL https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.22.0/SDL2_ttf-2.22.0.tar.gz
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(SDL2_ttf)
+if(NOT EMSCRIPTEN)
+  set(SDL2TTF_VENDORED ON CACHE BOOL "" FORCE)
+  set(SDL2TTF_SAMPLES OFF CACHE BOOL "" FORCE)
+  set(SDL2TTF_INSTALL OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+    SDL2_ttf
+    URL https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.22.0/SDL2_ttf-2.22.0.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  )
+  FetchContent_MakeAvailable(SDL2_ttf)
+endif()
 
 add_library(pg_core STATIC
   src/core/pg_digits.c
@@ -55,11 +83,19 @@ add_library(pg_core STATIC
 )
 target_include_directories(pg_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(pg_core PUBLIC SDL2::SDL2 SDL2_ttf::SDL2_ttf)
-target_compile_definitions(
-  pg_core
-  PRIVATE
-  "PG_ASSET_ROOT=\"${CMAKE_SOURCE_DIR}\""
-)
+if(EMSCRIPTEN)
+  target_compile_definitions(
+    pg_core
+    PRIVATE
+    "PG_ASSET_ROOT=\"\""
+  )
+else()
+  target_compile_definitions(
+    pg_core
+    PRIVATE
+    "PG_ASSET_ROOT=\"${CMAKE_SOURCE_DIR}\""
+  )
+endif()
 
 add_library(pg_shell STATIC
   src/shell/pg_app.c
@@ -105,6 +141,16 @@ target_include_directories(puzzlesgames PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/slitherlink")
 target_link_libraries(puzzlesgames PRIVATE pg_gamepack SDL2::SDL2 SDL2::SDL2main)
+
+if(EMSCRIPTEN)
+  set_target_properties(puzzlesgames PROPERTIES SUFFIX ".html")
+  target_link_options(puzzlesgames PRIVATE
+    "SHELL:-sMIN_WEBGL_VERSION=2"
+    "SHELL:-sMAX_WEBGL_VERSION=2"
+    "SHELL:-sALLOW_MEMORY_GROWTH=1"
+    "SHELL:--embed-file;${CMAKE_SOURCE_DIR}/assets/fonts/SourceSans3-Regular.ttf@/assets/fonts/SourceSans3-Regular.ttf"
+    "SHELL:--shell-file;${CMAKE_CURRENT_SOURCE_DIR}/web/shell_minimal.html")
+endif()
 
 if(WIN32)
   target_link_libraries(puzzlesgames PRIVATE shell32)
