@@ -39,3 +39,30 @@ Desktop.ini
 # Package managers (if added later)
 vcpkg_installed/
 .conan/
+
+# Local MinGW toolchain (optional download; large)
+tools/winlibs/
+
+# SDL source archive (fetch with scripts/fetch-deps.ps1 if not committed)
+third_party/SDL2-*.tar.gz
+
+# Ninja (in-tree or stray generator files)
+.ninja_deps
+.ninja_log
+build.ninja
+rules.ninja
+
+# CTest / coverage (sometimes emitted next to the build tree)
+Testing/
+*.gcda
+*.gcno
+*.gcov
+
+# Tooling caches
+.cache/
+
+# Logs and temp editor files
+*.log
+*~
+*.swp
+*.tmp
