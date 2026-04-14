@@ -4,6 +4,7 @@
 #include "pg/app.h"
 #include "pg/catalog/pg_catalog.h"
 #include "pg/text.h"
+#include "pg/theme.h"
 
 #include <SDL.h>
 
@@ -37,38 +38,38 @@ typedef struct G2048Game {
 static void g2048_tile_colors(int value, SDL_Color *bg, SDL_Color *fg)
 {
   if (value <= 0) {
-    *bg = (SDL_Color){0xCD, 0xC1, 0xB4, 255};
-    *fg = (SDL_Color){0xEE, 0xE4, 0xDA, 255};
+    *bg = PG_G2048_TILE_0_BG;
+    *fg = PG_G2048_TILE_0_FG;
     return;
   }
   switch (value) {
   case 2:
-    *bg = (SDL_Color){0xEE, 0xE4, 0xDA, 255};
-    *fg = (SDL_Color){0x77, 0x6E, 0x65, 255};
+    *bg = PG_G2048_TILE_2_BG;
+    *fg = PG_G2048_TILE_2_FG;
     break;
   case 4:
-    *bg = (SDL_Color){0xED, 0xE0, 0xC8, 255};
-    *fg = (SDL_Color){0x77, 0x6E, 0x65, 255};
+    *bg = PG_G2048_TILE_4_BG;
+    *fg = PG_G2048_TILE_4_FG;
     break;
   case 8:
-    *bg = (SDL_Color){0xF2, 0xB1, 0x79, 255};
-    *fg = (SDL_Color){0xF9, 0xF6, 0xF2, 255};
+    *bg = PG_G2048_TILE_8_BG;
+    *fg = PG_G2048_TILE_8_FG;
     break;
   case 16:
-    *bg = (SDL_Color){0xF5, 0x95, 0x63, 255};
-    *fg = (SDL_Color){0xF9, 0xF6, 0xF2, 255};
+    *bg = PG_G2048_TILE_16_BG;
+    *fg = PG_G2048_TILE_16_FG;
     break;
   case 32:
-    *bg = (SDL_Color){0xF6, 0x7C, 0x5F, 255};
-    *fg = (SDL_Color){0xF9, 0xF6, 0xF2, 255};
+    *bg = PG_G2048_TILE_32_BG;
+    *fg = PG_G2048_TILE_32_FG;
     break;
   case 64:
-    *bg = (SDL_Color){0xF6, 0x4D, 0x3F, 255};
-    *fg = (SDL_Color){0xF9, 0xF6, 0xF2, 255};
+    *bg = PG_G2048_TILE_64_BG;
+    *fg = PG_G2048_TILE_64_FG;
     break;
   default:
-    *bg = (SDL_Color){0xED, 0xCC, 0x61, 255};
-    *fg = (SDL_Color){0xF9, 0xF6, 0xF2, 255};
+    *bg = PG_G2048_TILE_HIGH_BG;
+    *fg = PG_G2048_TILE_HIGH_FG;
     break;
   }
 }
@@ -122,14 +123,14 @@ static void g2048_draw_board_shell(SDL_Renderer *r, const G2048Game *g)
   back.y = (float)g->layout_y;
   back.w = (float)g->board_px;
   back.h = (float)g->board_px;
-  SDL_Color shell = {0xBB, 0xAD, 0xA0, 255};
+  SDL_Color shell = PG_G2048_FRAME;
   g2048_draw_round_fill(r, &back, shell, 6.0f);
 
   for (int row = 0; row < G2048_SIZE; row++) {
     for (int col = 0; col < G2048_SIZE; col++) {
       SDL_FRect cell;
       g2048_cell_rect(g, (float)row, (float)col, &cell);
-      SDL_Color empty = {0xCE, 0xC1, 0xB5, 255};
+      SDL_Color empty = PG_G2048_CELL_EMPTY;
       g2048_draw_round_fill(r, &cell, empty, 4.0f);
     }
   }
@@ -366,7 +367,7 @@ static void g2048_render_static(SDL_Renderer *r, G2048Game *g)
 
 static void g2048_render_hud(SDL_Renderer *r, G2048Game *g)
 {
-  SDL_Color ink = {0x77, 0x6E, 0x65, 255};
+  SDL_Color ink = PG_COLOR_INK_MUTED;
   float x = 28.0f;
   float y = 18.0f;
   float row_h = 30.0f;
@@ -378,7 +379,8 @@ static void g2048_render_hud(SDL_Renderer *r, G2048Game *g)
   tag.y = y - 6.0f;
   tag.w = 112.0f;
   tag.h = row_h + 12.0f;
-  SDL_SetRenderDrawColor(r, 0xBB, 0xAD, 0xA0, 255);
+  SDL_Color frame = PG_G2048_FRAME;
+  SDL_SetRenderDrawColor(r, frame.r, frame.g, frame.b, frame.a);
   SDL_RenderFillRectF(r, &tag);
   pg_text_draw_utf8(r, title_x, y, row_h, "2048", ink);
 }
@@ -386,8 +388,7 @@ static void g2048_render_hud(SDL_Renderer *r, G2048Game *g)
 static void g2048_render(void *state, SDL_Renderer *renderer)
 {
   G2048Game *g = (G2048Game *)state;
-  SDL_SetRenderDrawColor(renderer, 0xFA, 0xF8, 0xEF, 255);
-  SDL_RenderClear(renderer);
+  pg_theme_clear_paper(renderer);
 
   g2048_render_hud(renderer, g);
   g2048_draw_board_shell(renderer, g);
@@ -411,7 +412,8 @@ static void g2048_render(void *state, SDL_Renderer *renderer)
     }
     banner.h = 10.0f;
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 0xED, 0xCC, 0x61, 220);
+    SDL_Color tip = PG_COLOR_STATE_CAUTION;
+    SDL_SetRenderDrawColor(renderer, tip.r, tip.g, tip.b, 200);
     SDL_RenderFillRectF(renderer, &banner);
   }
 
@@ -421,7 +423,8 @@ static void g2048_render(void *state, SDL_Renderer *renderer)
     SDL_GetRendererOutputSize(renderer, &ww, &hh);
     SDL_FRect dim = {0.0f, 0.0f, (float)ww, (float)hh};
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 25, 22, 20, 170);
+    SDL_Color scrim = PG_COLOR_OVERLAY_SCRIM;
+    SDL_SetRenderDrawColor(renderer, scrim.r, scrim.g, scrim.b, scrim.a);
     SDL_RenderFillRectF(renderer, &dim);
     float cx = (float)ww * 0.5f;
     float cy = (float)hh * 0.48f;
@@ -436,7 +439,7 @@ static void g2048_render(void *state, SDL_Renderer *renderer)
         renderer,
         &score_box,
         (uint32_t)g->board.score,
-        (SDL_Color){250, 248, 240, 255});
+        PG_COLOR_INVERSE_INK);
   }
 }
 

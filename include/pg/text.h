@@ -27,6 +27,15 @@ void pg_text_draw_uint(SDL_Renderer *renderer, float x, float y, float height_px
 /** Same sizing rules as pg_text_draw_uint, for short ASCII or UTF-8 labels. */
 void pg_text_draw_utf8(SDL_Renderer *renderer, float x, float y, float height_px, const char *utf8, SDL_Color color);
 
+/** Fit and draw UTF-8 inside `box`, centered horizontally and vertically. */
+void pg_text_draw_utf8_centered(SDL_Renderer *renderer, const SDL_FRect *box, const char *utf8, SDL_Color color);
+
+/**
+ * Pixel size of `utf8` when laid out like pg_text_draw_utf8 with the given nominal cap height.
+ * Returns false if text system is unavailable or measurement fails.
+ */
+bool pg_text_measure_nominal(const char *utf8, float height_px, float *out_w, float *out_h);
+
 #ifdef __cplusplus
 }
 #endif

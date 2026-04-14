@@ -45,6 +45,7 @@ bool pg_text_ref(void)
       }
       return false;
     }
+    TTF_SetFontHinting(s_font, TTF_HINTING_LIGHT);
   }
   s_refcount++;
   return true;
@@ -160,7 +161,69 @@ void pg_text_draw_uint_centered(SDL_Renderer *renderer, const SDL_FRect *box, ui
   if (tex == NULL) {
     return;
   }
+#if SDL_VERSION_ATLEAST(2, 0, 12)
   SDL_SetTextureScaleMode(tex, SDL_ScaleModeLinear);
+#endif
+  SDL_FRect dst;
+  dst.w = (float)tw;
+  dst.h = (float)th;
+  dst.x = box->x + (box->w - dst.w) * 0.5f;
+  dst.y = box->y + (box->h - dst.h) * 0.5f;
+  SDL_RenderCopyF(renderer, tex, NULL, &dst);
+  SDL_DestroyTexture(tex);
+}
+
+bool pg_text_measure_nominal(const char *utf8, float height_px, float *out_w, float *out_h)
+{
+  if (s_font == NULL || utf8 == NULL || utf8[0] == '\0' || out_w == NULL || out_h == NULL) {
+    return false;
+  }
+  int n = pg_text_utf8_len(utf8);
+  if (n <= 0) {
+    n = 1;
+  }
+  float per = height_px / 1.35f;
+  float approx_w = per * (float)n * 0.62f + height_px * 0.5f;
+  SDL_FRect box;
+  box.x = 0.0f;
+  box.y = 0.0f;
+  box.w = fmaxf(approx_w, height_px * 0.8f);
+  box.h = fmaxf(height_px * 1.2f, 12.0f);
+  int pt = 0;
+  int tw = 0;
+  int th = 0;
+  if (!pg_text_fit_size(utf8, box.w, box.h, &pt, &tw, &th)) {
+    return false;
+  }
+  *out_w = (float)tw;
+  *out_h = (float)th;
+  return true;
+}
+
+void pg_text_draw_utf8_centered(SDL_Renderer *renderer, const SDL_FRect *box, const char *utf8, SDL_Color color)
+{
+  if (s_font == NULL || renderer == NULL || box == NULL || utf8 == NULL || utf8[0] == '\0') {
+    return;
+  }
+  int pt = 0;
+  int tw = 0;
+  int th = 0;
+  if (!pg_text_fit_size(utf8, box->w, box->h, &pt, &tw, &th)) {
+    return;
+  }
+  (void)TTF_SetFontSize(s_font, pt);
+  SDL_Surface *surf = TTF_RenderUTF8_Blended(s_font, utf8, color);
+  if (surf == NULL) {
+    return;
+  }
+  SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
+  SDL_FreeSurface(surf);
+  if (tex == NULL) {
+    return;
+  }
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+  SDL_SetTextureScaleMode(tex, SDL_ScaleModeLinear);
+#endif
   SDL_FRect dst;
   dst.w = (float)tw;
   dst.h = (float)th;
@@ -203,7 +266,9 @@ static void pg_text_draw_utf8_sized(
   if (tex == NULL) {
     return;
   }
+#if SDL_VERSION_ATLEAST(2, 0, 12)
   SDL_SetTextureScaleMode(tex, SDL_ScaleModeLinear);
+#endif
   SDL_FRect dst;
   dst.w = (float)tw;
   dst.h = (float)th;

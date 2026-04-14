@@ -52,6 +52,7 @@ FetchContent_MakeAvailable(SDL2_ttf)
 add_library(pg_core STATIC
   src/core/pg_digits.c
   src/core/pg_text.c
+  src/core/pg_theme.c
 )
 target_include_directories(pg_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(pg_core PUBLIC SDL2::SDL2 SDL2_ttf::SDL2_ttf)
@@ -75,7 +76,6 @@ add_library(pg_gamepack STATIC
   games/mastermind/mastermind_logic.c
   games/mastermind/mastermind_game.c
   games/letterlock/letterlock_puzzle.c
-  games/letterlock/letterlock_glyphs.c
   games/letterlock/letterlock_game.c
   games/tictactoe/tictactoe_board.c
   games/tictactoe/tictactoe_game.c
