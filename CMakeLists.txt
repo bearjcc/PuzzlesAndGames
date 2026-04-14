@@ -9,34 +9,48 @@ option(PG_BUILD_TESTS "Build unit test executables" ON)
 
 include(FetchContent)
 
-set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
-set(SDL2_DISABLE_UNINSTALL ON CACHE BOOL "" FORCE)
-set(SDL_SHARED ON CACHE BOOL "" FORCE)
-
-set(PG_SDL2_ARCHIVE "${CMAKE_SOURCE_DIR}/third_party/SDL2-2.30.10.tar.gz")
-get_filename_component(PG_SDL2_ABS "${PG_SDL2_ARCHIVE}" ABSOLUTE)
-if(EXISTS "${PG_SDL2_ABS}")
-  # Prefer a local archive: reliable on Windows and avoids TLS trust issues in some bundled curl setups.
-  set(PG_SDL2_ROOT "${CMAKE_BINARY_DIR}/_deps/SDL2-2.30.10")
-  if(NOT EXISTS "${PG_SDL2_ROOT}/CMakeLists.txt")
-    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps")
-    execute_process(
-      COMMAND "${CMAKE_COMMAND}" -E tar xf "${PG_SDL2_ABS}"
-      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/_deps"
-      RESULT_VARIABLE PG_SDL2_EXTRACT_RESULT
-    )
-    if(NOT PG_SDL2_EXTRACT_RESULT EQUAL 0)
-      message(FATAL_ERROR "Failed to extract SDL2 archive: ${PG_SDL2_ABS}")
-    endif()
+# Emscripten ships an SDL2 port; link it via -sUSE_SDL=2 instead of building SDL from source.
+if(EMSCRIPTEN)
+  if(NOT TARGET SDL2_emscripten_port)
+    add_library(SDL2_emscripten_port INTERFACE)
+    target_compile_options(SDL2_emscripten_port INTERFACE "SHELL:-sUSE_SDL=2")
+    target_link_options(SDL2_emscripten_port INTERFACE "SHELL:-sUSE_SDL=2")
+    add_library(SDL2::SDL2 ALIAS SDL2_emscripten_port)
   endif()
-  add_subdirectory("${PG_SDL2_ROOT}" "${CMAKE_BINARY_DIR}/_deps/sdl2-build")
+  if(NOT TARGET SDL2_emscripten_main_stub)
+    add_library(SDL2_emscripten_main_stub INTERFACE)
+    add_library(SDL2::SDL2main ALIAS SDL2_emscripten_main_stub)
+  endif()
 else()
-  FetchContent_Declare(
-    SDL2
-    URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-  )
-  FetchContent_MakeAvailable(SDL2)
+  set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
+  set(SDL2_DISABLE_UNINSTALL ON CACHE BOOL "" FORCE)
+  set(SDL_SHARED ON CACHE BOOL "" FORCE)
+
+  set(PG_SDL2_ARCHIVE "${CMAKE_SOURCE_DIR}/third_party/SDL2-2.30.10.tar.gz")
+  get_filename_component(PG_SDL2_ABS "${PG_SDL2_ARCHIVE}" ABSOLUTE)
+  if(EXISTS "${PG_SDL2_ABS}")
+    # Prefer a local archive: reliable on Windows and avoids TLS trust issues in some bundled curl setups.
+    set(PG_SDL2_ROOT "${CMAKE_BINARY_DIR}/_deps/SDL2-2.30.10")
+    if(NOT EXISTS "${PG_SDL2_ROOT}/CMakeLists.txt")
+      file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps")
+      execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E tar xf "${PG_SDL2_ABS}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/_deps"
+        RESULT_VARIABLE PG_SDL2_EXTRACT_RESULT
+      )
+      if(NOT PG_SDL2_EXTRACT_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to extract SDL2 archive: ${PG_SDL2_ABS}")
+      endif()
+    endif()
+    add_subdirectory("${PG_SDL2_ROOT}" "${CMAKE_BINARY_DIR}/_deps/sdl2-build")
+  else()
+    FetchContent_Declare(
+      SDL2
+      URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz
+      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(SDL2)
+  endif()
 endif()
 
 add_library(pg_core STATIC
@@ -97,6 +111,15 @@ target_include_directories(puzzlesgames PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe")
 target_link_libraries(puzzlesgames PRIVATE pg_g2048 pg_letterlock pg_tictactoe SDL2::SDL2 SDL2::SDL2main)
+
+if(EMSCRIPTEN)
+  set_target_properties(puzzlesgames PROPERTIES SUFFIX ".html")
+  target_link_options(puzzlesgames PRIVATE
+    "SHELL:-sMIN_WEBGL_VERSION=2"
+    "SHELL:-sMAX_WEBGL_VERSION=2"
+    "SHELL:-sALLOW_MEMORY_GROWTH=1"
+    "SHELL:--shell-file;${CMAKE_CURRENT_SOURCE_DIR}/web/shell_minimal.html")
+endif()
 
 if(WIN32)
   target_link_libraries(puzzlesgames PRIVATE shell32)

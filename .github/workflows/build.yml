@@ -1,0 +1,89 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Configure
+        run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release -j"$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: puzzlesgames-linux-x64
+          path: build/puzzlesgames
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ninja
+        run: choco install ninja --yes
+      - name: Configure
+        run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build -j 4
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: puzzlesgames-windows-x64
+          path: build/puzzlesgames.exe
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ninja
+        run: brew install ninja
+      - name: Configure
+        run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release -j "$(sysctl -n hw.ncpu)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: puzzlesgames-macos-arm64
+          path: build/puzzlesgames
+
+  wasm:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+          actions-cache-folder: emsdk-cache
+      - name: Configure
+        run: emcmake cmake -G Ninja -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release -DPG_BUILD_TESTS=OFF
+      - name: Build
+        run: cmake --build build-wasm -j"$(nproc)"
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: puzzlesgames-wasm
+          path: |
+            build-wasm/puzzlesgames.html
+            build-wasm/puzzlesgames.js
+            build-wasm/puzzlesgames.wasm
