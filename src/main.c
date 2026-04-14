@@ -1,9 +1,11 @@
 #include "g2048_game.h"
 #include "letterlock_game.h"
+#include "mastermind_game.h"
 #include "slitherlink_game.h"
 #include "tictactoe_game.h"
 
 #include "pg/app.h"
+#include "pg/catalog/pg_catalog.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,7 +16,7 @@ static void print_usage(const char *argv0)
   fprintf(
       stderr,
       "Usage: %s [game] [options]\n"
-      "  game: g2048 (default) | letterlock | tictactoe | slitherlink\n"
+      "  game: (default catalog) | g2048 | mastermind | letterlock | tictactoe | slitherlink\n"
       "  slitherlink options: --w N --h N --rect|--blob --easy|--normal|--hard --seed U32\n"
       "  Keys (slitherlink): click edges, N new puzzle, C clear lines, R same as N\n",
       argv0);
@@ -33,8 +35,8 @@ static int parse_uint(const char *s, unsigned int *out)
 
 int main(int argc, char **argv)
 {
-  const PgGameVtable *vt = g2048_game_vt();
-  const char *title = "PuzzlesAndGames - 2048";
+  const PgGameVtable *vt = pg_catalog_game_vt();
+  const char *title = "PuzzlesAndGames";
   int win_w = 720;
   int win_h = 820;
 
@@ -49,7 +51,17 @@ int main(int argc, char **argv)
       print_usage(argv[0]);
       return 0;
     }
-    if (strcmp(argv[1], "letterlock") == 0) {
+    if (strcmp(argv[1], "2048") == 0 || strcmp(argv[1], "g2048") == 0) {
+      vt = g2048_game_vt();
+      title = "PuzzlesAndGames - 2048";
+      win_w = 720;
+      win_h = 820;
+    } else if (strcmp(argv[1], "mastermind") == 0 || strcmp(argv[1], "mm") == 0) {
+      vt = mastermind_game_vt();
+      title = "PuzzlesAndGames - Mastermind";
+      win_w = 720;
+      win_h = 820;
+    } else if (strcmp(argv[1], "letterlock") == 0) {
       vt = letterlock_game_vt();
       title = "PuzzlesAndGames - Letterlock";
       win_w = 780;
@@ -93,7 +105,7 @@ int main(int argc, char **argv)
           return 2;
         }
       }
-    } else if (strcmp(argv[1], "g2048") != 0) {
+    } else {
       fprintf(stderr, "Unknown game: %s\n", argv[1]);
       print_usage(argv[0]);
       return 2;

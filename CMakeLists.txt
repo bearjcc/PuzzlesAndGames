@@ -68,70 +68,43 @@ add_library(pg_shell STATIC
 target_include_directories(pg_shell PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(pg_shell PUBLIC SDL2::SDL2 SDL2::SDL2main pg_core)
 
-add_library(pg_g2048 STATIC
+add_library(pg_gamepack STATIC
+  games/catalog/pg_catalog.c
   games/g2048/g2048_board.c
   games/g2048/g2048_game.c
-)
-target_include_directories(pg_g2048 PUBLIC
-  "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048")
-target_link_libraries(pg_g2048 PUBLIC pg_shell)
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(pg_g2048 PUBLIC m)
-endif()
-
-add_library(pg_letterlock STATIC
+  games/mastermind/mastermind_logic.c
+  games/mastermind/mastermind_game.c
   games/letterlock/letterlock_puzzle.c
   games/letterlock/letterlock_glyphs.c
   games/letterlock/letterlock_game.c
-)
-target_include_directories(pg_letterlock PUBLIC
-  "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock")
-target_link_libraries(pg_letterlock PUBLIC pg_shell)
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(pg_letterlock PUBLIC m)
-endif()
-
-add_library(pg_tictactoe STATIC
   games/tictactoe/tictactoe_board.c
   games/tictactoe/tictactoe_game.c
-)
-target_include_directories(pg_tictactoe PUBLIC
-  "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock")
-target_link_libraries(pg_tictactoe PUBLIC pg_shell pg_letterlock)
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(pg_tictactoe PUBLIC m)
-endif()
-
-add_library(pg_slitherlink STATIC
   games/slitherlink/slitherlink_board.c
   games/slitherlink/slitherlink_game.c
 )
-target_include_directories(pg_slitherlink PUBLIC
+target_include_directories(pg_gamepack PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/catalog"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/slitherlink")
-target_link_libraries(pg_slitherlink PUBLIC pg_shell)
+target_link_libraries(pg_gamepack PUBLIC pg_shell)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(pg_slitherlink PUBLIC m)
+  target_link_libraries(pg_gamepack PUBLIC m)
 endif()
 
 add_executable(puzzlesgames src/main.c)
 target_include_directories(puzzlesgames PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/catalog"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/slitherlink")
-target_link_libraries(puzzlesgames PRIVATE
-  pg_g2048
-  pg_letterlock
-  pg_tictactoe
-  pg_slitherlink
-  SDL2::SDL2
-  SDL2::SDL2main)
+target_link_libraries(puzzlesgames PRIVATE pg_gamepack SDL2::SDL2 SDL2::SDL2main)
 
 if(WIN32)
   target_link_libraries(puzzlesgames PRIVATE shell32)
@@ -144,6 +117,12 @@ if(PG_BUILD_TESTS)
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048")
   add_test(NAME g2048_board COMMAND test_g2048_board)
+
+  add_executable(test_mastermind_logic tests/test_mastermind_logic.c games/mastermind/mastermind_logic.c)
+  target_include_directories(test_mastermind_logic PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind")
+  add_test(NAME mastermind_logic COMMAND test_mastermind_logic)
 
   add_executable(test_letterlock_puzzle tests/test_letterlock_puzzle.c games/letterlock/letterlock_puzzle.c)
   target_include_directories(test_letterlock_puzzle PRIVATE
