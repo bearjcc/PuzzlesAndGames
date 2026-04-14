@@ -1,0 +1,84 @@
+cmake_minimum_required(VERSION 3.16)
+project(PuzzlesAndGames C)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+option(PG_BUILD_TESTS "Build unit test executables" ON)
+
+include(FetchContent)
+
+set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
+set(SDL2_DISABLE_UNINSTALL ON CACHE BOOL "" FORCE)
+set(SDL_SHARED ON CACHE BOOL "" FORCE)
+
+set(PG_SDL2_ARCHIVE "${CMAKE_SOURCE_DIR}/third_party/SDL2-2.30.10.tar.gz")
+get_filename_component(PG_SDL2_ABS "${PG_SDL2_ARCHIVE}" ABSOLUTE)
+if(EXISTS "${PG_SDL2_ABS}")
+  # Prefer a local archive: reliable on Windows and avoids TLS trust issues in some bundled curl setups.
+  set(PG_SDL2_ROOT "${CMAKE_BINARY_DIR}/_deps/SDL2-2.30.10")
+  if(NOT EXISTS "${PG_SDL2_ROOT}/CMakeLists.txt")
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps")
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E tar xf "${PG_SDL2_ABS}"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/_deps"
+      RESULT_VARIABLE PG_SDL2_EXTRACT_RESULT
+    )
+    if(NOT PG_SDL2_EXTRACT_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to extract SDL2 archive: ${PG_SDL2_ABS}")
+    endif()
+  endif()
+  add_subdirectory("${PG_SDL2_ROOT}" "${CMAKE_BINARY_DIR}/_deps/sdl2-build")
+else()
+  FetchContent_Declare(
+    SDL2
+    URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  )
+  FetchContent_MakeAvailable(SDL2)
+endif()
+
+add_library(pg_core STATIC
+  src/core/pg_digits.c
+)
+target_include_directories(pg_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(pg_core PUBLIC SDL2::SDL2)
+
+add_library(pg_shell STATIC
+  src/shell/pg_app.c
+  src/shell/pg_game.c
+)
+target_include_directories(pg_shell PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(pg_shell PUBLIC SDL2::SDL2 SDL2::SDL2main pg_core)
+
+add_library(pg_g2048 STATIC
+  games/g2048/g2048_board.c
+  games/g2048/g2048_game.c
+)
+target_include_directories(pg_g2048 PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048")
+target_link_libraries(pg_g2048 PUBLIC pg_shell)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(pg_g2048 PUBLIC m)
+endif()
+
+add_executable(puzzlesgames src/main.c)
+target_include_directories(puzzlesgames PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048")
+target_link_libraries(puzzlesgames PRIVATE pg_g2048 SDL2::SDL2 SDL2::SDL2main)
+
+if(WIN32)
+  target_link_libraries(puzzlesgames PRIVATE shell32)
+endif()
+
+if(PG_BUILD_TESTS)
+  enable_testing()
+  add_executable(test_g2048_board tests/test_g2048_board.c games/g2048/g2048_board.c)
+  target_include_directories(test_g2048_board PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048")
+  add_test(NAME g2048_board COMMAND test_g2048_board)
+endif()
