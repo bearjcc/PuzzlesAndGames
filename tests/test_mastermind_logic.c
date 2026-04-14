@@ -29,6 +29,12 @@ int main(void)
   CHECK(ex == 1);
   CHECK(pa == 0);
 
+  int secret3[] = {2, 2, 2, 2};
+  int guess3[] = {0, 2, 0, 2};
+  mm_compute_feedback(secret3, guess3, 4, 6, &ex, &pa);
+  CHECK(ex == 2);
+  CHECK(pa == 0);
+
   MmConfig cfg;
   mm_config_default(&cfg);
   cfg.allow_duplicates = false;
@@ -53,6 +59,18 @@ int main(void)
   st.draft[3] = st.secret[3];
   CHECK(mm_try_submit(&st));
   CHECK(st.outcome == 1);
+
+  mm_config_default(&cfg);
+  cfg.allow_blank = true;
+  CHECK(mm_config_validate(&cfg) == NULL);
+  mm_state_reset(&st, &cfg, 99u);
+  st.draft[0] = 1;
+  st.draft[1] = 0;
+  st.draft[2] = 0;
+  st.draft[3] = 0;
+  CHECK(mm_draft_complete(&st));
+  CHECK(mm_try_submit(&st));
+  CHECK(st.n_committed == 1);
 
   return fail ? 1 : 0;
 }

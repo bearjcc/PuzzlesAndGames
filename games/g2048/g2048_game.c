@@ -1,6 +1,8 @@
 #include "g2048_game.h"
 
 #include "g2048_board.h"
+#include "pg/app.h"
+#include "pg/catalog/pg_catalog.h"
 #include "pg/digits.h"
 
 #include <SDL.h>
@@ -12,6 +14,7 @@ static const float kMoveDuration = 0.13f;
 static const float kMergePulse = 0.11f;
 
 typedef struct G2048Game {
+  SDL_Renderer *renderer;
   G2048Board board;
   G2048Board pending;
   bool animating;
@@ -233,6 +236,7 @@ static void *g2048_create(SDL_Renderer *renderer)
   }
   uint32_t seed = (uint32_t)SDL_GetTicks();
   g2048_reset(g, seed == 0u ? 1u : seed);
+  g->renderer = renderer;
   int w = 0;
   int h = 0;
   SDL_GetRendererOutputSize(renderer, &w, &h);
@@ -257,6 +261,16 @@ static void g2048_on_event(void *state, const SDL_Event *event)
   G2048Game *g = (G2048Game *)state;
   if (event->type == SDL_KEYDOWN) {
     const SDL_Keycode k = event->key.keysym.sym;
+    if (k == SDLK_ESCAPE) {
+      PgApp *app = pg_app_from_renderer(g->renderer);
+      if (app != NULL) {
+        SDL_SetWindowTitle(app->window, "PuzzlesAndGames");
+        if (!pg_app_replace_game(app, pg_catalog_game_vt())) {
+          app->running = false;
+        }
+      }
+      return;
+    }
     if (k == SDLK_r) {
       g2048_reset_cb(g);
       return;

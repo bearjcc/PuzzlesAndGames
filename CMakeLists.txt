@@ -52,35 +52,30 @@ add_library(pg_shell STATIC
 target_include_directories(pg_shell PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(pg_shell PUBLIC SDL2::SDL2 SDL2::SDL2main pg_core)
 
-add_library(pg_g2048 STATIC
+add_library(pg_gamepack STATIC
+  games/catalog/pg_catalog.c
   games/g2048/g2048_board.c
   games/g2048/g2048_game.c
-)
-target_include_directories(pg_g2048 PUBLIC
-  "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048")
-target_link_libraries(pg_g2048 PUBLIC pg_shell)
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(pg_g2048 PUBLIC m)
-endif()
-
-add_library(pg_mastermind STATIC
   games/mastermind/mastermind_logic.c
   games/mastermind/mastermind_game.c
 )
-target_include_directories(pg_mastermind PUBLIC
+target_include_directories(pg_gamepack PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind")
-target_link_libraries(pg_mastermind PUBLIC pg_shell)
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/catalog")
+target_link_libraries(pg_gamepack PUBLIC pg_shell)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(pg_mastermind PUBLIC m)
+  target_link_libraries(pg_gamepack PUBLIC m)
 endif()
 
 add_executable(puzzlesgames src/main.c)
 target_include_directories(puzzlesgames PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind")
-target_link_libraries(puzzlesgames PRIVATE pg_mastermind SDL2::SDL2 SDL2::SDL2main)
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/catalog")
+target_link_libraries(puzzlesgames PRIVATE pg_gamepack SDL2::SDL2 SDL2::SDL2main)
 
 if(WIN32)
   target_link_libraries(puzzlesgames PRIVATE shell32)

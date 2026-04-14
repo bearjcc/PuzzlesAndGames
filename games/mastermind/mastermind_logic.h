@@ -13,7 +13,7 @@ typedef struct MmConfig {
   int ncolours;
   int npegs;
   int nguesses;
-  /* Reserved for STP parity; the SDL build treats blanks as off-only for now. */
+  /* Peg value 0 is blank (STP Guess). Secrets still use 1..ncolours only. */
   bool allow_blank;
   bool allow_duplicates;
 } MmConfig;

@@ -28,9 +28,6 @@ const char *mm_config_validate(const MmConfig *cfg)
   if (!cfg->allow_duplicates && cfg->ncolours < cfg->npegs) {
     return "unique colours need at least as many colours as pegs";
   }
-  if (cfg->allow_blank) {
-    return "blank pegs are not implemented yet";
-  }
   return NULL;
 }
 
@@ -100,7 +97,7 @@ void mm_compute_feedback(
   int j;
 
   for (i = 0; i < npegs; i++) {
-    if (guess[i] == secret[i]) {
+    if (guess[i] != 0 && guess[i] == secret[i]) {
       nc_place++;
     }
   }
@@ -108,6 +105,7 @@ void mm_compute_feedback(
   /*
    * Scoring matches Simon Tatham's Guess (`third_party/stp-guess/guess.c`, mark_pegs):
    * sum over colours of min(count in guess, count in secret) minus exact placements.
+   * Blank pegs (0) do not participate in colour counts.
    */
   for (i = 1; i <= ncolours; i++) {
     int n_guess = 0;
@@ -116,7 +114,7 @@ void mm_compute_feedback(
       if (guess[j] == i) {
         n_guess++;
       }
-      if (secret[j] == i) {
+      if (secret[j] != 0 && secret[j] == i) {
         n_solution++;
       }
     }
@@ -136,19 +134,24 @@ bool mm_draft_complete(const MmState *s)
 {
   int used[MM_MAX_COLOURS];
   memset(used, 0, sizeof(used));
+  int nset = 0;
   for (int i = 0; i < s->cfg.npegs; i++) {
     int c = s->draft[i];
-    if (c < 1 || c > s->cfg.ncolours) {
+    if (c < 0 || c > s->cfg.ncolours) {
       return false;
     }
-    if (!s->cfg.allow_duplicates) {
-      if (used[c - 1]) {
-        return false;
+    if (c > 0) {
+      nset++;
+      if (!s->cfg.allow_duplicates) {
+        if (used[c - 1]) {
+          return false;
+        }
+        used[c - 1] = 1;
       }
-      used[c - 1] = 1;
     }
   }
-  return true;
+  int nrequired = s->cfg.allow_blank ? 1 : s->cfg.npegs;
+  return nset >= nrequired;
 }
 
 bool mm_try_submit(MmState *s)

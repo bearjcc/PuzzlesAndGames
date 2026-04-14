@@ -1,6 +1,8 @@
 #include "mastermind_game.h"
 
 #include "mastermind_logic.h"
+#include "pg/app.h"
+#include "pg/catalog/pg_catalog.h"
 #include "pg/digits.h"
 
 #include <SDL.h>
@@ -109,6 +111,8 @@ static void mm_reset(MmUi *u, uint32_t seed)
 {
   MmConfig cfg;
   mm_config_default(&cfg);
+  /* Enable blank pegs so the palette matches STP Guess optional mode (classic default remains off in mm_config_default). */
+  cfg.allow_blank = true;
   mm_state_reset(&u->st, &cfg, seed);
 }
 
@@ -122,16 +126,29 @@ static void mm_mouse_to_logical(const MmUi *u, int window_x, int window_y, float
   SDL_RenderWindowToLogical(u->renderer, (float)window_x, (float)window_y, lx, ly);
 }
 
-static void mm_palette_hit(const MmUi *u, float mx, float my, int *out_index)
+/* Sets *out_value to 0 (blank) or 1..ncolours. *out_value = -1 if no hit. */
+static void mm_palette_hit(const MmUi *u, float mx, float my, int *out_value)
 {
-  *out_index = -1;
-  for (int i = 0; i < u->st.cfg.ncolours; i++) {
+  *out_value = -1;
+  int row = 0;
+  if (u->st.cfg.allow_blank) {
     float cx = (float)u->palette_x + (float)u->peg_r + 12.0f;
-    float cy = (float)u->palette_y + (float)i * (float)u->palette_step + (float)u->peg_r;
+    float cy = (float)u->palette_y + (float)u->peg_r;
     float dx = mx - cx;
     float dy = my - cy;
     if (dx * dx + dy * dy <= (float)(u->peg_r + 6) * (float)(u->peg_r + 6)) {
-      *out_index = i + 1;
+      *out_value = 0;
+      return;
+    }
+    row = 1;
+  }
+  for (int i = 0; i < u->st.cfg.ncolours; i++) {
+    float cx = (float)u->palette_x + (float)u->peg_r + 12.0f;
+    float cy = (float)u->palette_y + (float)(row + i) * (float)u->palette_step + (float)u->peg_r;
+    float dx = mx - cx;
+    float dy = my - cy;
+    if (dx * dx + dy * dy <= (float)(u->peg_r + 6) * (float)(u->peg_r + 6)) {
+      *out_value = i + 1;
       return;
     }
   }
@@ -205,7 +222,7 @@ static void mm_on_event(void *state, const SDL_Event *event)
     mm_mouse_to_logical(u, event->button.x, event->button.y, &mx, &my);
     int pi = -1;
     mm_palette_hit(u, mx, my, &pi);
-    if (pi > 0) {
+    if (pi >= 0) {
       u->st.selected_colour = pi;
     }
     int slot = -1;
@@ -221,6 +238,16 @@ static void mm_on_event(void *state, const SDL_Event *event)
     return;
   }
   const SDL_Keycode k = event->key.keysym.sym;
+  if (k == SDLK_ESCAPE) {
+    PgApp *app = pg_app_from_renderer(u->renderer);
+    if (app != NULL) {
+      SDL_SetWindowTitle(app->window, "PuzzlesAndGames");
+      if (!pg_app_replace_game(app, pg_catalog_game_vt())) {
+        app->running = false;
+      }
+    }
+    return;
+  }
   if (k == SDLK_r) {
     mm_reset_cb(u);
     return;
@@ -241,11 +268,13 @@ static void mm_on_event(void *state, const SDL_Event *event)
       u->st.cursor_slot++;
     }
   } else if (k == SDLK_UP) {
-    if (u->st.selected_colour < u->st.cfg.ncolours) {
+    int hi = u->st.cfg.ncolours;
+    if (u->st.selected_colour < hi) {
       u->st.selected_colour++;
     }
   } else if (k == SDLK_DOWN) {
-    if (u->st.selected_colour > 1) {
+    int lo = u->st.cfg.allow_blank ? 0 : 1;
+    if (u->st.selected_colour > lo) {
       u->st.selected_colour--;
     }
   } else if (k == SDLK_SPACE) {
@@ -254,6 +283,9 @@ static void mm_on_event(void *state, const SDL_Event *event)
     u->st.draft[u->st.cursor_slot] = 0;
   } else if (k == SDLK_RETURN || k == SDLK_KP_ENTER) {
     (void)mm_try_submit(&u->st);
+  } else if (k == SDLK_0 && u->st.cfg.allow_blank) {
+    u->st.selected_colour = 0;
+    u->st.draft[u->st.cursor_slot] = 0;
   } else if (k >= SDLK_1 && k <= SDLK_9) {
     int d = (int)(k - SDLK_1) + 1;
     if (d <= u->st.cfg.ncolours) {
@@ -285,6 +317,12 @@ static void mm_draw_row(
     int pv = pegs[s];
     if (pv >= 1 && pv <= u->st.cfg.ncolours) {
       mm_draw_filled_circle(r, cx, y, (float)u->peg_r, kMmPalette[pv - 1]);
+    } else if (pv == 0 && u->st.cfg.allow_blank && (is_draft || row_index < u->st.n_committed)) {
+      mm_draw_hole(r, cx, y, (float)u->peg_r);
+      SDL_SetRenderDrawColor(r, 200, 195, 188, 255);
+      float inset = (float)u->peg_r * 0.45f;
+      SDL_RenderDrawLineF(r, cx - inset, y - inset, cx + inset, y + inset);
+      SDL_RenderDrawLineF(r, cx - inset, y + inset, cx + inset, y - inset);
     } else {
       mm_draw_hole(r, cx, y, (float)u->peg_r);
     }
@@ -327,9 +365,25 @@ static void mm_render(void *state, SDL_Renderer *renderer)
     pg_digits_draw_uint(renderer, (float)u->win_w - 120.0f, 18.0f, 2.2f, (uint32_t)(u->st.n_committed + 1), hud);
   }
 
+  if (u->st.cfg.allow_blank) {
+    float cx = (float)u->palette_x + (float)u->peg_r + 12.0f;
+    float cy = (float)u->palette_y + (float)u->peg_r;
+    if (u->st.selected_colour == 0) {
+      SDL_SetRenderDrawColor(renderer, 80, 70, 60, 255);
+      SDL_FRect hi = {cx - (float)u->peg_r - 6.0f, cy - (float)u->peg_r - 6.0f,
+          (float)u->peg_r * 2.0f + 12.0f, (float)u->peg_r * 2.0f + 12.0f};
+      SDL_RenderFillRectF(renderer, &hi);
+    }
+    mm_draw_hole(renderer, cx, cy, (float)u->peg_r);
+    SDL_SetRenderDrawColor(renderer, 200, 195, 188, 255);
+    float inset = (float)u->peg_r * 0.45f;
+    SDL_RenderDrawLineF(renderer, cx - inset, cy - inset, cx + inset, cy + inset);
+    SDL_RenderDrawLineF(renderer, cx - inset, cy + inset, cx + inset, cy - inset);
+  }
   for (int i = 0; i < u->st.cfg.ncolours; i++) {
     float cx = (float)u->palette_x + (float)u->peg_r + 12.0f;
-    float cy = (float)u->palette_y + (float)i * (float)u->palette_step + (float)u->peg_r;
+    int pr = u->st.cfg.allow_blank ? 1 : 0;
+    float cy = (float)u->palette_y + (float)(pr + i) * (float)u->palette_step + (float)u->peg_r;
     SDL_Color col = kMmPalette[i];
     if (i + 1 == u->st.selected_colour) {
       SDL_SetRenderDrawColor(renderer, 80, 70, 60, 255);
