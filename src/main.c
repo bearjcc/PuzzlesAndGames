@@ -1,4 +1,4 @@
-#include "g2048_game.h"
+#include "mastermind_game.h"
 #include "pg/app.h"
 
 int main(int argc, char **argv)
@@ -7,7 +7,7 @@ int main(int argc, char **argv)
   (void)argv;
 
   PgApp app;
-  if (!pg_app_init(&app, "PuzzlesAndGames - 2048", 720, 820, g2048_game_vt())) {
+  if (!pg_app_init(&app, "PuzzlesAndGames - Mastermind", 720, 820, mastermind_game_vt())) {
     return 1;
   }
   pg_app_run(&app);

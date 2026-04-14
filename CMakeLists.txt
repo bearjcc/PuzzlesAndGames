@@ -64,11 +64,23 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(pg_g2048 PUBLIC m)
 endif()
 
+add_library(pg_mastermind STATIC
+  games/mastermind/mastermind_logic.c
+  games/mastermind/mastermind_game.c
+)
+target_include_directories(pg_mastermind PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind")
+target_link_libraries(pg_mastermind PUBLIC pg_shell)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(pg_mastermind PUBLIC m)
+endif()
+
 add_executable(puzzlesgames src/main.c)
 target_include_directories(puzzlesgames PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048")
-target_link_libraries(puzzlesgames PRIVATE pg_g2048 SDL2::SDL2 SDL2::SDL2main)
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind")
+target_link_libraries(puzzlesgames PRIVATE pg_mastermind SDL2::SDL2 SDL2::SDL2main)
 
 if(WIN32)
   target_link_libraries(puzzlesgames PRIVATE shell32)
@@ -81,4 +93,10 @@ if(PG_BUILD_TESTS)
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048")
   add_test(NAME g2048_board COMMAND test_g2048_board)
+
+  add_executable(test_mastermind_logic tests/test_mastermind_logic.c games/mastermind/mastermind_logic.c)
+  target_include_directories(test_mastermind_logic PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/games/mastermind")
+  add_test(NAME mastermind_logic COMMAND test_mastermind_logic)
 endif()
