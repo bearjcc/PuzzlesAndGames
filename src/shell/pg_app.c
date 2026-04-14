@@ -129,6 +129,10 @@ void pg_app_shutdown(PgApp *app)
 
 void pg_app_run(PgApp *app)
 {
+  if (app == NULL || app->renderer == NULL) {
+    return;
+  }
+
   const Uint64 perf_freq = SDL_GetPerformanceFrequency();
   Uint64 last = SDL_GetPerformanceCounter();
 
