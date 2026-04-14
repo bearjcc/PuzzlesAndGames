@@ -77,12 +77,25 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(pg_letterlock PUBLIC m)
 endif()
 
+add_library(pg_lightsout STATIC
+  games/lightsout/lightsout_board.c
+  games/lightsout/lightsout_game.c
+)
+target_include_directories(pg_lightsout PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/lightsout")
+target_link_libraries(pg_lightsout PUBLIC pg_shell)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(pg_lightsout PUBLIC m)
+endif()
+
 add_executable(puzzlesgames src/main.c)
 target_include_directories(puzzlesgames PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/g2048"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock")
-target_link_libraries(puzzlesgames PRIVATE pg_g2048 pg_letterlock SDL2::SDL2 SDL2::SDL2main)
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/lightsout")
+target_link_libraries(puzzlesgames PRIVATE pg_g2048 pg_letterlock pg_lightsout SDL2::SDL2 SDL2::SDL2main)
 
 if(WIN32)
   target_link_libraries(puzzlesgames PRIVATE shell32)
@@ -100,4 +113,9 @@ if(PG_BUILD_TESTS)
   target_include_directories(test_letterlock_puzzle PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock")
   add_test(NAME letterlock_puzzle COMMAND test_letterlock_puzzle)
+
+  add_executable(test_lightsout_board tests/test_lightsout_board.c games/lightsout/lightsout_board.c)
+  target_include_directories(test_lightsout_board PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/games/lightsout")
+  add_test(NAME lightsout_board COMMAND test_lightsout_board)
 endif()
