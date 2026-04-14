@@ -20,7 +20,7 @@ jobs:
       - name: Configure
         run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build
-        run: cmake --build build --config Release -j"$(nproc)"
+        run: cmake --build build -j"$(nproc)"
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Upload
@@ -56,7 +56,7 @@ jobs:
       - name: Configure
         run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build
-        run: cmake --build build --config Release -j "$(sysctl -n hw.ncpu)"
+        run: cmake --build build -j "$(sysctl -n hw.ncpu)"
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Upload
