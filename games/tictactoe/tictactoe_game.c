@@ -1,6 +1,8 @@
 #include "tictactoe_game.h"
 
 #include "tictactoe_board.h"
+
+#include "pg/app.h"
 #include "pg/text.h"
 #include "pg/theme.h"
 
@@ -292,23 +294,9 @@ static void ttt_on_event(void *state, const SDL_Event *event)
 {
   TttGame *g = (TttGame *)state;
   if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
-    float mx = (float)event->button.x;
-    float my = (float)event->button.y;
-    if (g->renderer != NULL) {
-      SDL_Window *win = SDL_RenderGetWindow(g->renderer);
-      if (win != NULL) {
-        int ww = 0;
-        int wh = 0;
-        int rw = 0;
-        int rh = 0;
-        SDL_GetWindowSize(win, &ww, &wh);
-        SDL_GetRendererOutputSize(g->renderer, &rw, &rh);
-        if (ww > 0 && wh > 0) {
-          mx = mx * (float)rw / (float)ww;
-          my = my * (float)rh / (float)wh;
-        }
-      }
-    }
+    float mx = 0.0f;
+    float my = 0.0f;
+    pg_sdl_window_to_logical(g->renderer, event->button.x, event->button.y, &mx, &my);
     TttAiDifficulty dh;
     if (ttt_difficulty_hit(g, mx, my, &dh)) {
       g->diff = dh;
