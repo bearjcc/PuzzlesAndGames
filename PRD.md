@@ -20,22 +20,24 @@ Ship a **single-player, fully local** puzzle and games hub that a privacy-focuse
 
 - **Trust**: no telemetry, ads, or third-party SDKs; **no outbound network** in shipped builds (enforcement approach documented in [PLAN.md](PLAN.md)).
 - **Cross-platform desktop**: Windows, Linux, macOS as tier 1; mobile optional later.
-- **Bundled assets**: fonts, icons, help text, and native dependencies ship **inside the install**; no CDN or runtime downloads.
+- **Bundled assets**: fonts, icons, help text, and native dependencies ship **inside the release artifact** (portable folder or package-managed layout); no CDN or runtime downloads.
 - **Open source**: permissive license for the hub (MIT or Apache-2.0) unless a bundled component forces GPL (e.g. some chess engines); document boundaries.
 - **Modular games**: shared shell (launcher, settings, save format, input) with per-game modules behind a stable interface.
+- **Distribution**: ship as **portable artifacts** (for example zip or tarball) or via **system package managers**; **no first-party installer** that assumes elevated privileges.
 
 ## Non-goals (initial)
 
 - Multiplayer, accounts, cloud sync, leaderboards, storefronts.
 - Anti-cheat or server-side validation.
 - Marketing or engagement fluff (ads, trackers, optional analytics).
+- **Dedicated installers** (MSI, Setup.exe, macOS pkg that require admin by default) and **in-app self-update** clients we maintain ourselves.
 
 ---
 
 ## Personas
 
 - **Paranoid power user**: reads dependency list and build flags; may build from source; wants a small, explainable binary.
-- **Casual offline player**: wants one installer and a simple catalog; no ads.
+- **Casual offline player**: wants a **simple catalog** and friction-free setup (**portable folder** or **package manager** install); **no admin rights**; no ads.
 
 ## Trust mechanisms
 
@@ -69,6 +71,8 @@ Ship a **single-player, fully local** puzzle and games hub that a privacy-focuse
 | Performance | Define cold-start and frame-time budgets per platform; 60 FPS 2D target for grid games. |
 | Maintainability | One module interface per game; shared types for input and timing. |
 | Licensing | SPDX per component; isolate GPL engines if used. |
+| Distribution | **No installer** as a product requirement: prefer portable bundles and OS or third-party **package managers** (for example **winget**, **apt**, **Homebrew**). **No administrator elevation** for normal install and play. |
+| Updates | Any **automatic** or low-friction updates are **out of scope for in-app code**; users get new versions through **package manager updates** or by replacing a portable folder. |
 
 ---
 
