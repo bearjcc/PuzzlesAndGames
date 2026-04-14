@@ -12,7 +12,7 @@
 
 ## Product vision
 
-Ship a **single-player, fully local** puzzle and games hub that a privacy-focused user can **audit, build from source, and run without any network capability**. Positioning is **utility over spectacle**: fast launch, clear rules, stable saves, minimal chrome. The project draws inspiration from [Simon Tatham's Portable Puzzle Collection](https://www.chiark.greenend.org.uk/~sgtatham/puzzles/): reuse **permissively licensed** logic where it helps, implement a clear shell and integration layer in this repository.
+Ship a **single-player, fully local** puzzle and games hub that a privacy-focused user can **audit, build from source, and run without any network capability**. Positioning is **utility over spectacle**: fast launch, clear rules, stable saves, minimal chrome. The project draws inspiration from [Simon Tatham's Portable Puzzle Collection](https://www.chiark.greenend.org.uk/~sgtatham/puzzles/): reuse **permissively licensed** logic where it helps, implement a clear shell and integration layer in this repository. Like that collection, games should favor **extreme configurability** where rules allow: a **standard preset** plus a **Configure** path to change dimensions, counts, or other parameters (for example Mastermind-style colors, guesses, and code length; grid games with independent width and height).
 
 ---
 
@@ -23,6 +23,7 @@ Ship a **single-player, fully local** puzzle and games hub that a privacy-focuse
 - **Bundled assets**: fonts, icons, help text, and native dependencies ship **inside the release artifact** (portable folder or package-managed layout); no CDN or runtime downloads.
 - **Open source**: permissive license for the hub (MIT or Apache-2.0) unless a bundled component forces GPL (e.g. some chess engines); document boundaries.
 - **Modular games**: shared shell (launcher, settings, save format, input) with per-game modules behind a stable interface.
+- **Configurable play**: each title documents **defaults** (the familiar ruleset) and exposes **parameters** within validated bounds; the shell can offer **Configure before New Game** (or equivalent) so players are not locked to a single board size or rule variant.
 - **Distribution**: ship as **portable artifacts** (for example zip or tarball) or via **system package managers**; **no first-party installer** that assumes elevated privileges.
 
 ## Non-goals (initial)
@@ -55,6 +56,7 @@ Ship a **single-player, fully local** puzzle and games hub that a privacy-focuse
 3. **Persistence**: save/load per title; predictable user data location; optional export/import.
 4. **Accessibility**: scalable UI, keyboard navigation; color-safe palettes where relevant.
 5. **Determinism**: seeded randomness where applicable; **copy seed** and serialized state for bug reports.
+6. **Per-game configuration**: **named presets** (for example classic rules) plus adjustable parameters; **saves** and **copy-seed** payloads must record the **active configuration** (not only the RNG seed) so behavior is reproducible and bug reports stay meaningful.
 
 ### Stretch
 
@@ -91,7 +93,7 @@ Legal note: puzzle **rules** are not a substitute for **clear OSS licensing** on
 ## Roadmap (product phases)
 
 1. **Foundation**: repository layout, build, CI, dependency policy, stub shell plus one stub game.
-2. **Vertical slice**: one complete grid game with saves and rules.
+2. **Vertical slice**: one complete grid game with saves, rules, and **player-visible configuration** (presets plus bounded parameters) where the first shipped title allows it.
 3. **Board games**: chess or checkers behind the module API; GPL boundary decided in advance.
 4. **STP spike**: one upstream puzzle wired through a native frontend; measure size and maintenance.
 5. **Hardening**: a11y, performance, reproducible builds, license aggregation.

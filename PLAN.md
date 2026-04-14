@@ -58,6 +58,13 @@ Each game module should expose a small API, for example:
 - State: `serialize`, `deserialize` (for saves and bug reports).
 - Help: local rules text or path to bundled doc.
 
+**Game parameters** (STP-style configurability) should be explicit in the contract, not an afterthought:
+
+- **Config struct** (or equivalent): one place per game for tunables (for example grid width and height, win tile, Mastermind peg count). The shell passes this into `new_game(config)`.
+- **Validation**: a single path (for example `validate_config`) enforces min/max and mutual constraints; the shell, tests, and deserializer all rely on it.
+- **Presets**: well-known modes (Classic, Mini, Wide) are **literal configs** or small factories, not special cases scattered through game logic.
+- **Wire format**: serialized state and exported seeds include **enough configuration** to replay the session; bump a **format version** when fields change.
+
 ---
 
 ## Third-party and reuse
