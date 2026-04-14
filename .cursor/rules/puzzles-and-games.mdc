@@ -1,0 +1,35 @@
+---
+description: PuzzlesAndGames project defaults (offline C/C++ puzzle hub)
+globs: "**/*.{c,h,cpp,hpp,cc,cxx,cmake,txt,md}"
+alwaysApply: true
+---
+
+# PuzzlesAndGames
+
+## Product constraints
+
+- **No network** in release paths: do not add sockets, HTTP clients, telemetry SDKs, or crash reporters that upload data unless the PRD explicitly expands scope and the user opts in.
+- **Bundled assets**: fonts, help, and native deps ship with the app; no runtime downloads from CDNs.
+- **Privacy copy**: avoid implying legal guarantees; describe technical behavior accurately.
+
+## Code and stack
+
+- **Primary languages**: C and/or C++. Prefer **C** for puzzle cores and STP-style integration; **C++** only where it clearly helps (shell, RAII), with clean C linkage boundaries.
+- **Build**: CMake or Meson; prefer **static linking** for small installs when licenses allow.
+- **Graphics**: SDL2 or Raylib (project choice in [PLAN.md](../../PLAN.md)); avoid pulling Godot, Flutter, Electron, or Rust as the main app runtime for this repo.
+
+## Third party
+
+- Vendored code lives under **`third_party/`** with upstream **LICENSE** files preserved.
+- Record **SPDX** identifiers in build metadata or a `LICENSES.md` as the repo grows.
+- Before copying snippets from blogs or gists, replace with a **versioned upstream** or rewrite with tests.
+
+## Quality
+
+- Treat **save files and seeds** as untrusted input: validate bounds, fuzz parsers where practical.
+- Use **sanitizers** and **static analysis** in CI when the environment supports them.
+- Match existing style in each directory; use `#region` / `#endregion` for non-trivial sections in C/C++ when it aids navigation.
+
+## Docs
+
+- Large product decisions belong in **[PRD.md](../../PRD.md)**; engineering detail in **[PLAN.md](../../PLAN.md)**.
