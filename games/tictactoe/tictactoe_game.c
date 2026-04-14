@@ -3,6 +3,9 @@
 #include "letterlock_glyphs.h"
 #include "tictactoe_board.h"
 
+#include "pg/app.h"
+#include "pg/catalog/pg_catalog.h"
+
 #include <SDL.h>
 
 #include <math.h>
@@ -336,6 +339,16 @@ static void ttt_on_event(void *state, const SDL_Event *event)
     return;
   }
   const SDL_Keycode k = event->key.keysym.sym;
+  if (k == SDLK_ESCAPE) {
+    PgApp *app = pg_app_from_renderer(g->renderer);
+    if (app != NULL) {
+      SDL_SetWindowTitle(app->window, "PuzzlesAndGames");
+      if (!pg_app_replace_game(app, pg_catalog_game_vt())) {
+        app->running = false;
+      }
+    }
+    return;
+  }
   if (k == SDLK_r) {
     ttt_reset_cb(g);
     return;

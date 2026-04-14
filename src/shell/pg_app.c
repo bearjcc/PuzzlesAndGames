@@ -32,6 +32,8 @@ bool pg_app_init(PgApp *app, const char *title, int width, int height, const PgG
     return false;
   }
 
+  SDL_SetWindowData(app->window, PG_APP_WINDOW_DATA_KEY, app);
+
   app->renderer = SDL_CreateRenderer(app->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
   if (app->renderer == NULL) {
     app->renderer = SDL_CreateRenderer(app->window, -1, SDL_RENDERER_SOFTWARE);
@@ -62,9 +64,42 @@ bool pg_app_init(PgApp *app, const char *title, int width, int height, const PgG
   return true;
 }
 
+PgApp *pg_app_from_renderer(SDL_Renderer *renderer)
+{
+  if (renderer == NULL) {
+    return NULL;
+  }
+  SDL_Window *win = SDL_RenderGetWindow(renderer);
+  if (win == NULL) {
+    return NULL;
+  }
+  return (PgApp *)SDL_GetWindowData(win, PG_APP_WINDOW_DATA_KEY);
+}
+
+bool pg_app_replace_game(PgApp *app, const PgGameVtable *game_vt)
+{
+  if (app == NULL || app->renderer == NULL || game_vt == NULL) {
+    return false;
+  }
+  pg_game_destroy(&app->game);
+  void *state = game_vt->create(app->renderer);
+  if (state == NULL) {
+    fprintf(stderr, "pg_app_replace_game: game create failed\n");
+    app->game.vt = NULL;
+    app->game.state = NULL;
+    return false;
+  }
+  pg_game_init(&app->game, game_vt, state);
+  game_vt->resize(state, app->window_w, app->window_h);
+  return true;
+}
+
 void pg_app_shutdown(PgApp *app)
 {
   pg_game_destroy(&app->game);
+  if (app->window != NULL) {
+    SDL_SetWindowData(app->window, PG_APP_WINDOW_DATA_KEY, NULL);
+  }
   if (app->renderer != NULL) {
     SDL_DestroyRenderer(app->renderer);
     app->renderer = NULL;
@@ -84,10 +119,6 @@ void pg_app_run(PgApp *app)
   while (app->running) {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
-      if (e.type == SDL_QUIT) {
-        app->running = false;
-        break;
-      }
       if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
         int w = 0;
         int h = 0;
@@ -100,6 +131,9 @@ void pg_app_run(PgApp *app)
       }
       if (app->game.vt != NULL && app->game.state != NULL) {
         app->game.vt->on_event(app->game.state, &e);
+      }
+      if (e.type == SDL_QUIT) {
+        app->running = false;
       }
     }
 
