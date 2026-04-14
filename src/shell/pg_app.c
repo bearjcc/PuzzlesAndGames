@@ -1,5 +1,7 @@
 #include "pg/app.h"
 
+#include "pg/theme.h"
+
 #include <SDL.h>
 
 #include <stdio.h>
@@ -112,8 +114,7 @@ void pg_app_run(PgApp *app)
 
     if (app->game.vt != NULL && app->game.state != NULL) {
       app->game.vt->update(app->game.state, dt);
-      SDL_SetRenderDrawColor(app->renderer, 0, 0, 0, 255);
-      SDL_RenderClear(app->renderer);
+      pg_theme_clear_paper(app->renderer);
       app->game.vt->render(app->game.state, app->renderer);
       SDL_RenderPresent(app->renderer);
     }

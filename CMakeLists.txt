@@ -52,6 +52,7 @@ FetchContent_MakeAvailable(SDL2_ttf)
 add_library(pg_core STATIC
   src/core/pg_digits.c
   src/core/pg_text.c
+  src/core/pg_theme.c
 )
 target_include_directories(pg_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(pg_core PUBLIC SDL2::SDL2 SDL2_ttf::SDL2_ttf)
@@ -82,7 +83,6 @@ endif()
 
 add_library(pg_letterlock STATIC
   games/letterlock/letterlock_puzzle.c
-  games/letterlock/letterlock_glyphs.c
   games/letterlock/letterlock_game.c
 )
 target_include_directories(pg_letterlock PUBLIC
@@ -101,7 +101,7 @@ target_include_directories(pg_tictactoe PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock")
-target_link_libraries(pg_tictactoe PUBLIC pg_shell pg_letterlock)
+target_link_libraries(pg_tictactoe PUBLIC pg_shell)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(pg_tictactoe PUBLIC m)
 endif()

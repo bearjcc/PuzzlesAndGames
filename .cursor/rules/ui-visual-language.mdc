@@ -1,0 +1,25 @@
+---
+description: Default UI visual language for SDL2 screens in this repo
+globs: "**/*.{c,h}"
+alwaysApply: false
+---
+
+# UI visual language (PuzzlesAndGames)
+
+## Intent
+
+Offline puzzles should read like **quiet print**: paper background, near-black ink, minimal chrome. The reference is **2048** and **NYT-style grids**: flat color, clear geometry, no skeuomorphism, no loud gradients.
+
+**Good style is barely noticed.** Prefer one obvious layout rhythm over decoration.
+
+## Enforcement
+
+- **Palette and helpers**: use `include/pg/theme.h` (`PG_COLOR_*`, `pg_theme_clear_paper`, `pg_theme_stroke_px`). Avoid raw `SDL_SetRenderDrawColor` literals for page fills or shared neutrals unless there is a deliberate one-off (then add a named token).
+- **Typography**: use bundled **Source Sans 3** via `pg/text.h` (`pg_text_draw_utf8`, `pg_text_draw_uint`, centered variants). Do not ship new puzzle UI as bitmap letter tiles unless there is a strong accessibility or performance reason documented in code.
+- **Scale**: layout in renderer output pixels (`SDL_GetRendererOutputSize`); keep strokes derived from cell or board size so lines stay crisp on HiDPI.
+- **Copy**: use **sentence case** for player-facing English in new UI strings (not ALL CAPS).
+
+## Anti-patterns
+
+- Pure black clears, neon accent stacks, heavy drop shadows, skeuomorphic textures.
+- Hard-coded duplicate neutrals across games when `PG_COLOR_*` already exists.

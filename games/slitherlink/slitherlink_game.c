@@ -2,6 +2,7 @@
 
 #include "slitherlink_board.h"
 #include "pg/digits.h"
+#include "pg/theme.h"
 
 #include <SDL.h>
 
@@ -300,15 +301,15 @@ static void sl_draw_edge(SDL_Renderer *r, float x0, float y0, float x1, float y1
 static void sl_render(void *state, SDL_Renderer *renderer)
 {
   SlitherlinkGame *g = (SlitherlinkGame *)state;
-  SDL_SetRenderDrawColor(renderer, 0xF4, 0xF6, 0xFA, 255);
-  SDL_RenderClear(renderer);
+  pg_theme_clear_paper(renderer);
 
   float gx = (float)g->grid_x;
   float gy = (float)g->grid_y;
   float c = g->cell;
 
   /* Dots at lattice points */
-  SDL_SetRenderDrawColor(renderer, 0x6B, 0x73, 0x80, 255);
+  SDL_Color dot = PG_SLITHER_DOT;
+  SDL_SetRenderDrawColor(renderer, dot.r, dot.g, dot.b, dot.a);
   for (int r = 0; r <= g->board.h; r++) {
     for (int col = 0; col <= g->board.w; col++) {
       float cx = gx + (float)col * c;
@@ -331,7 +332,8 @@ static void sl_render(void *state, SDL_Renderer *renderer)
             c - 2.0f,
             c - 2.0f,
         };
-        SDL_SetRenderDrawColor(renderer, 0xE5, 0xE8, 0xEF, 255);
+        SDL_Color wash = PG_SLITHER_BLOB_INACTIVE;
+        SDL_SetRenderDrawColor(renderer, wash.r, wash.g, wash.b, wash.a);
         SDL_RenderFillRectF(renderer, &cell);
       }
     }
@@ -363,12 +365,12 @@ static void sl_render(void *state, SDL_Renderer *renderer)
           cy - 3.5f * px,
           px,
           (uint32_t)clue,
-          (SDL_Color){0x1F, 0x29, 0x37, 255});
+          PG_SLITHER_CLUE);
     }
   }
 
-  SDL_Color ink_user = {0x25, 0x63, 0xEB, 255};
-  SDL_Color ink_sol = {0x22, 0xC5, 0x5E, 200};
+  SDL_Color ink_user = PG_SLITHER_EDGE_USER;
+  SDL_Color ink_sol = PG_SLITHER_EDGE_SOL;
   float thick = c * 0.09f;
   if (thick < 3.0f) {
     thick = 3.0f;
