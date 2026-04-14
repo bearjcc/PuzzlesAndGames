@@ -1,0 +1,35 @@
+#!/bin/sh -e
+
+dosize() {
+    size=$1
+    fname=$2
+    hsize=`echo $size 63*128/p|dc`
+    hoffset=`echo $size $hsize -p|dc`
+
+    convert -size ${size}x${size} xc:black tmp.png
+
+    convert magnets-base.png -crop 68x68+34+98 -resize ${hsize}x${hsize} icon00.png
+    convert net-base.png -crop 62x62+80+80 -resize ${hsize}x${hsize} icon01.png
+    convert lightup-base.png -crop 64x64+176+144 -resize ${hsize}x${hsize} icon10.png
+    convert undead-base.png -crop 128x128+97+160 -resize ${hsize}x${hsize} icon11.png
+
+    composite -colorspace rgb -geometry +0+0 icon00.png tmp.png tmp.png
+    composite -colorspace rgb -geometry +${hoffset}+0 icon01.png tmp.png tmp.png
+    composite -colorspace rgb -geometry +0+${hoffset} icon10.png tmp.png tmp.png
+    composite -colorspace rgb -geometry +${hoffset}+${hoffset} icon11.png tmp.png tmp.png
+
+    cp tmp.png ../$fname
+}
+
+dosize 1024 iTunesArtwork.png
+dosize 180  Icon-180@3x.png
+dosize 167  Icon-167@2x.png
+dosize 152  Icon-76@2x.png
+dosize 76   Icon-76.png
+dosize 144  Icon-72@2x.png
+dosize 72   Icon-72.png
+dosize 120  Icon-120.png
+dosize 114  Icon@2x.png
+dosize 57   Icon.png
+
+open ../Icon*.png

@@ -95,6 +95,78 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(pg_gamepack PUBLIC m)
 endif()
 
+set(PG_STP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/puzzles")
+add_library(pg_stp STATIC
+  games/stp/stp_sdl_game.c
+  "${PG_STP_DIR}/blackbox.c"
+  "${PG_STP_DIR}/bridges.c"
+  "${PG_STP_DIR}/combi.c"
+  "${PG_STP_DIR}/cube.c"
+  "${PG_STP_DIR}/divvy.c"
+  "${PG_STP_DIR}/dominosa.c"
+  "${PG_STP_DIR}/drawing.c"
+  "${PG_STP_DIR}/dsf.c"
+  "${PG_STP_DIR}/fifteen.c"
+  "${PG_STP_DIR}/filling.c"
+  "${PG_STP_DIR}/flip.c"
+  "${PG_STP_DIR}/flood.c"
+  "${PG_STP_DIR}/galaxies.c"
+  "${PG_STP_DIR}/grid.c"
+  "${PG_STP_DIR}/guess.c"
+  "${PG_STP_DIR}/inertia.c"
+  "${PG_STP_DIR}/keen.c"
+  "${PG_STP_DIR}/latin.c"
+  "${PG_STP_DIR}/laydomino.c"
+  "${PG_STP_DIR}/lightup.c"
+  "${PG_STP_DIR}/list.c"
+  "${PG_STP_DIR}/loopgen.c"
+  "${PG_STP_DIR}/loopy.c"
+  "${PG_STP_DIR}/magnets.c"
+  "${PG_STP_DIR}/malloc.c"
+  "${PG_STP_DIR}/map.c"
+  "${PG_STP_DIR}/maxflow.c"
+  "${PG_STP_DIR}/midend.c"
+  "${PG_STP_DIR}/mines.c"
+  "${PG_STP_DIR}/misc.c"
+  "${PG_STP_DIR}/net.c"
+  "${PG_STP_DIR}/netslide.c"
+  "${PG_STP_DIR}/pattern.c"
+  "${PG_STP_DIR}/printing.c"
+  "${PG_STP_DIR}/ps.c"
+  "${PG_STP_DIR}/pearl.c"
+  "${PG_STP_DIR}/pegs.c"
+  "${PG_STP_DIR}/penrose.c"
+  "${PG_STP_DIR}/random.c"
+  "${PG_STP_DIR}/range.c"
+  "${PG_STP_DIR}/rect.c"
+  "${PG_STP_DIR}/samegame.c"
+  "${PG_STP_DIR}/signpost.c"
+  "${PG_STP_DIR}/singles.c"
+  "${PG_STP_DIR}/sixteen.c"
+  "${PG_STP_DIR}/slant.c"
+  "${PG_STP_DIR}/solo.c"
+  "${PG_STP_DIR}/tdq.c"
+  "${PG_STP_DIR}/tents.c"
+  "${PG_STP_DIR}/towers.c"
+  "${PG_STP_DIR}/tracks.c"
+  "${PG_STP_DIR}/tree234.c"
+  "${PG_STP_DIR}/twiddle.c"
+  "${PG_STP_DIR}/undead.c"
+  "${PG_STP_DIR}/unequal.c"
+  "${PG_STP_DIR}/unruly.c"
+  "${PG_STP_DIR}/untangle.c"
+  "${PG_STP_DIR}/version.c"
+)
+target_include_directories(pg_stp PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/stp"
+  "${PG_STP_DIR}")
+target_compile_definitions(pg_stp PRIVATE COMBINED)
+target_link_libraries(pg_stp PUBLIC pg_shell SDL2::SDL2 SDL2_ttf::SDL2_ttf)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(pg_stp PUBLIC m)
+endif()
+
 add_executable(puzzlesgames src/main.c)
 target_include_directories(puzzlesgames PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -103,8 +175,20 @@ target_include_directories(puzzlesgames PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/games/catalog"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/letterlock"
   "${CMAKE_CURRENT_SOURCE_DIR}/games/tictactoe"
-  "${CMAKE_CURRENT_SOURCE_DIR}/games/slitherlink")
-target_link_libraries(puzzlesgames PRIVATE pg_gamepack SDL2::SDL2 SDL2::SDL2main)
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/slitherlink"
+  "${CMAKE_CURRENT_SOURCE_DIR}/games/stp")
+target_link_libraries(puzzlesgames PRIVATE pg_gamepack pg_stp SDL2::SDL2 SDL2::SDL2main)
+
+add_custom_command(TARGET puzzlesgames POST_BUILD
+  COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:puzzlesgames>/assets/fonts"
+  COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/SourceSans3-wght.ttf"
+    "$<TARGET_FILE_DIR:puzzlesgames>/assets/fonts/SourceSans3-wght.ttf"
+  COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/SourceSans3-OFL.txt"
+    "$<TARGET_FILE_DIR:puzzlesgames>/assets/fonts/SourceSans3-OFL.txt"
+  COMMENT "Copy bundled STP UI font next to puzzlesgames"
+)
 
 if(WIN32)
   target_link_libraries(puzzlesgames PRIVATE shell32)

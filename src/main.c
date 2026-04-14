@@ -2,6 +2,7 @@
 #include "letterlock_game.h"
 #include "mastermind_game.h"
 #include "slitherlink_game.h"
+#include "stp_sdl_game.h"
 #include "tictactoe_game.h"
 
 #include "pg/app.h"
@@ -16,9 +17,10 @@ static void print_usage(const char *argv0)
   fprintf(
       stderr,
       "Usage: %s [game] [options]\n"
-      "  game: (default catalog) | g2048 | mastermind | letterlock | tictactoe | slitherlink\n"
+      "  game: (default catalog) | g2048 | mastermind | letterlock | tictactoe | slitherlink | stp\n"
       "  slitherlink options: --w N --h N --rect|--blob --easy|--normal|--hard --seed U32\n"
-      "  Keys (slitherlink): click edges, N new puzzle, C clear lines, R same as N\n",
+      "  Keys (slitherlink): click edges, N new puzzle, C clear lines, R same as N\n"
+      "  stp: Simon Tatham puzzle collection (set PG_STP_GAME=name, F2 for new deal)\n",
       argv0);
 }
 
@@ -105,6 +107,11 @@ int main(int argc, char **argv)
           return 2;
         }
       }
+    } else if (strcmp(argv[1], "stp") == 0) {
+      vt = stp_sdl_game_vt();
+      title = "PuzzlesAndGames - Simon Tatham puzzles";
+      win_w = 900;
+      win_h = 700;
     } else {
       fprintf(stderr, "Unknown game: %s\n", argv[1]);
       print_usage(argv[0]);
