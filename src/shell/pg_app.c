@@ -1,5 +1,6 @@
 #include "pg/app.h"
 
+#include "pg/sdl.h"
 #include "pg/theme.h"
 
 #include <SDL.h>
@@ -66,20 +67,6 @@ bool pg_app_init(PgApp *app, const char *title, int width, int height, const PgG
   return true;
 }
 
-void pg_sdl_window_to_logical(SDL_Renderer *renderer, int window_x, int window_y, float *out_lx, float *out_ly)
-{
-  if (renderer == NULL || out_lx == NULL || out_ly == NULL) {
-    if (out_lx != NULL) {
-      *out_lx = (float)window_x;
-    }
-    if (out_ly != NULL) {
-      *out_ly = (float)window_y;
-    }
-    return;
-  }
-  SDL_RenderWindowToLogical(renderer, (float)window_x, (float)window_y, out_lx, out_ly);
-}
-
 PgApp *pg_app_from_renderer(SDL_Renderer *renderer)
 {
   if (renderer == NULL) {
@@ -138,7 +125,7 @@ void pg_app_run(PgApp *app)
       if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
         int w = 0;
         int h = 0;
-        SDL_GetRendererOutputSize(app->renderer, &w, &h);
+        (void)pg_sdl_renderer_output_size(app->renderer, &w, &h);
         app->window_w = w;
         app->window_h = h;
         if (app->game.vt != NULL && app->game.state != NULL) {

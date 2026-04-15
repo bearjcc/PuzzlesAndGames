@@ -1,10 +1,10 @@
 #include "tictactoe_game.h"
 
 #include "tictactoe_board.h"
+#include "pg/catalog/pg_catalog.h"
+#include "pg/sdl.h"
 #include "pg/text.h"
 #include "pg/theme.h"
-
-#include "pg/catalog/pg_catalog.h"
 
 #include <SDL.h>
 
@@ -13,6 +13,7 @@
 #include <string.h>
 
 typedef struct TttGame {
+  PgTextSession text_session;
   SDL_Renderer *renderer;
   int8_t cells[TTT_CELL_COUNT];
   TttAiDifficulty diff;
@@ -258,7 +259,8 @@ static void *ttt_create(SDL_Renderer *renderer)
   if (g == NULL) {
     return NULL;
   }
-  if (!pg_text_ref()) {
+  pg_text_session_begin(&g->text_session);
+  if (!g->text_session.active) {
     SDL_free(g);
     return NULL;
   }
@@ -271,15 +273,19 @@ static void *ttt_create(SDL_Renderer *renderer)
   ttt_reset_board(g);
   int w = 0;
   int h = 0;
-  SDL_GetRendererOutputSize(renderer, &w, &h);
+  (void)pg_sdl_renderer_output_size(renderer, &w, &h);
   ttt_layout(g, w, h);
   return g;
 }
 
 static void ttt_destroy(void *state)
 {
-  pg_text_unref();
-  SDL_free(state);
+  TttGame *g = (TttGame *)state;
+  if (g == NULL) {
+    return;
+  }
+  pg_text_session_end(&g->text_session);
+  SDL_free(g);
 }
 
 static void ttt_reset_cb(void *state)
@@ -292,22 +298,10 @@ static void ttt_on_event(void *state, const SDL_Event *event)
 {
   TttGame *g = (TttGame *)state;
   if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
-    float mx = (float)event->button.x;
-    float my = (float)event->button.y;
-    if (g->renderer != NULL) {
-      SDL_Window *win = SDL_RenderGetWindow(g->renderer);
-      if (win != NULL) {
-        int ww = 0;
-        int wh = 0;
-        int rw = 0;
-        int rh = 0;
-        SDL_GetWindowSize(win, &ww, &wh);
-        SDL_GetRendererOutputSize(g->renderer, &rw, &rh);
-        if (ww > 0 && wh > 0) {
-          mx = mx * (float)rw / (float)ww;
-          my = my * (float)rh / (float)wh;
-        }
-      }
+    float mx;
+    float my;
+    if (!pg_sdl_event_pointer_logical(g->renderer, event, &mx, &my)) {
+      return;
     }
     TttAiDifficulty dh;
     if (ttt_difficulty_hit(g, mx, my, &dh)) {

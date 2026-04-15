@@ -3,6 +3,7 @@
 #include "slitherlink_board.h"
 
 #include "pg/catalog/pg_catalog.h"
+#include "pg/sdl.h"
 #include "pg/digits.h"
 #include "pg/theme.h"
 
@@ -209,22 +210,10 @@ static void sl_on_event(void *state, const SDL_Event *event)
 {
   SlitherlinkGame *g = (SlitherlinkGame *)state;
   if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
-    float x = (float)event->button.x;
-    float y = (float)event->button.y;
-    if (g->renderer != NULL) {
-      int ren_w = 0;
-      int ren_h = 0;
-      SDL_GetRendererOutputSize(g->renderer, &ren_w, &ren_h);
-      SDL_Window *win = SDL_RenderGetWindow(g->renderer);
-      if (win != NULL && ren_w > 0 && ren_h > 0) {
-        int win_w = 0;
-        int win_h = 0;
-        SDL_GetWindowSize(win, &win_w, &win_h);
-        if (win_w > 0 && win_h > 0) {
-          x *= (float)ren_w / (float)win_w;
-          y *= (float)ren_h / (float)win_h;
-        }
-      }
+    float x;
+    float y;
+    if (!pg_sdl_event_pointer_logical(g->renderer, event, &x, &y)) {
+      return;
     }
     int ri, ci;
     float dh = 1e9f;
