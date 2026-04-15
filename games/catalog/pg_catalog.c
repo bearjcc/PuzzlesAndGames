@@ -6,6 +6,7 @@
 #include "slitherlink_game.h"
 #include "tictactoe_game.h"
 
+#include "pg/sdl.h"
 #include "pg/text.h"
 #include "pg/theme.h"
 
@@ -36,6 +37,7 @@ enum { PG_CATALOG_NUM_GAMES = (int)(sizeof(kCatalogGames) / sizeof(kCatalogGames
 /* #endregion */
 
 typedef struct PgCatalogState {
+  PgTextSession text_session;
   SDL_Renderer *renderer;
   int win_w;
   int win_h;
@@ -225,27 +227,32 @@ static int catalog_digit_key_slot(SDL_Keycode k)
 
 static void *catalog_create(SDL_Renderer *renderer)
 {
-  if (!pg_text_ref()) {
-    return NULL;
-  }
   PgCatalogState *s = (PgCatalogState *)SDL_calloc(1, sizeof(PgCatalogState));
   if (s == NULL) {
-    pg_text_unref();
+    return NULL;
+  }
+  pg_text_session_begin(&s->text_session);
+  if (!s->text_session.active) {
+    SDL_free(s);
     return NULL;
   }
   s->renderer = renderer;
   s->hover_slot = -1;
   int w = 0;
   int h = 0;
-  SDL_GetRendererOutputSize(renderer, &w, &h);
+  (void)pg_sdl_renderer_output_size(renderer, &w, &h);
   catalog_layout(s, w, h);
   return s;
 }
 
 static void catalog_destroy(void *state)
 {
-  SDL_free(state);
-  pg_text_unref();
+  PgCatalogState *s = (PgCatalogState *)state;
+  if (s == NULL) {
+    return;
+  }
+  pg_text_session_end(&s->text_session);
+  SDL_free(s);
 }
 
 static void catalog_reset(void *state)
@@ -266,22 +273,24 @@ static void catalog_on_event(void *state, const SDL_Event *event)
   if (event->type == SDL_MOUSEMOTION) {
     float lx;
     float ly;
-    pg_sdl_window_to_logical(s->renderer, event->motion.x, event->motion.y, &lx, &ly);
-    int slot = -1;
-    if (catalog_point_in_tile(s, lx, ly, &slot)) {
-      s->hover_slot = slot;
-    } else {
-      s->hover_slot = -1;
+    if (pg_sdl_event_pointer_logical(s->renderer, event, &lx, &ly)) {
+      int slot = -1;
+      if (catalog_point_in_tile(s, lx, ly, &slot)) {
+        s->hover_slot = slot;
+      } else {
+        s->hover_slot = -1;
+      }
     }
     return;
   }
   if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
     float lx;
     float ly;
-    pg_sdl_window_to_logical(s->renderer, event->button.x, event->button.y, &lx, &ly);
-    int slot = -1;
-    if (catalog_point_in_tile(s, lx, ly, &slot) && slot >= 0 && slot < PG_CATALOG_NUM_GAMES) {
-      catalog_start_game_at(s, slot);
+    if (pg_sdl_event_pointer_logical(s->renderer, event, &lx, &ly)) {
+      int slot = -1;
+      if (catalog_point_in_tile(s, lx, ly, &slot) && slot >= 0 && slot < PG_CATALOG_NUM_GAMES) {
+        catalog_start_game_at(s, slot);
+      }
     }
     return;
   }

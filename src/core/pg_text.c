@@ -68,6 +68,23 @@ void pg_text_unref(void)
   }
 }
 
+void pg_text_session_begin(PgTextSession *session)
+{
+  if (session == NULL) {
+    return;
+  }
+  session->active = pg_text_ref();
+}
+
+void pg_text_session_end(PgTextSession *session)
+{
+  if (session == NULL || !session->active) {
+    return;
+  }
+  pg_text_unref();
+  session->active = false;
+}
+
 static int pg_text_utf8_len(const char *s)
 {
   int n = 0;

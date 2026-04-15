@@ -27,9 +27,6 @@ bool pg_app_replace_game(PgApp *app, const PgGameVtable *game_vt);
 void pg_app_shutdown(PgApp *app);
 void pg_app_run(PgApp *app);
 
-/* Map window-pixel mouse coordinates to logical renderer coordinates (HiDPI / logical scaling). */
-void pg_sdl_window_to_logical(SDL_Renderer *renderer, int window_x, int window_y, float *out_lx, float *out_ly);
-
 #ifdef __cplusplus
 }
 #endif

@@ -1,10 +1,10 @@
 #include "letterlock_game.h"
 
 #include "letterlock_puzzle.h"
+#include "pg/catalog/pg_catalog.h"
+#include "pg/sdl.h"
 #include "pg/text.h"
 #include "pg/theme.h"
-
-#include "pg/catalog/pg_catalog.h"
 
 #include <SDL.h>
 
@@ -12,6 +12,7 @@
 #include <string.h>
 
 typedef struct LetterlockGame {
+  PgTextSession text_session;
   SDL_Renderer *renderer;
   LetterlockPuzzle puzzle;
   int win_w;
@@ -272,14 +273,15 @@ static void *letterlock_create(SDL_Renderer *renderer)
   if (g == NULL) {
     return NULL;
   }
-  if (!pg_text_ref()) {
+  pg_text_session_begin(&g->text_session);
+  if (!g->text_session.active) {
     SDL_free(g);
     return NULL;
   }
   g->renderer = renderer;
   int w = 0;
   int h = 0;
-  SDL_GetRendererOutputSize(renderer, &w, &h);
+  (void)pg_sdl_renderer_output_size(renderer, &w, &h);
   g->win_w = w;
   g->win_h = h;
   uint32_t seed = (uint32_t)SDL_GetTicks();
@@ -290,8 +292,12 @@ static void *letterlock_create(SDL_Renderer *renderer)
 
 static void letterlock_destroy(void *state)
 {
-  pg_text_unref();
-  SDL_free(state);
+  LetterlockGame *g = (LetterlockGame *)state;
+  if (g == NULL) {
+    return;
+  }
+  pg_text_session_end(&g->text_session);
+  SDL_free(g);
 }
 
 static void letterlock_reset_cb(void *state)

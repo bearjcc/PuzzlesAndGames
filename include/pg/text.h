@@ -13,6 +13,14 @@ extern "C" {
 bool pg_text_ref(void);
 void pg_text_unref(void);
 
+/** RAII-style pairing for game create/destroy (safe if begin fails). */
+typedef struct PgTextSession {
+  bool active;
+} PgTextSession;
+
+void pg_text_session_begin(PgTextSession *session);
+void pg_text_session_end(PgTextSession *session);
+
 /**
  * Draw decimal digits using the bundled font, centered in `box`.
  * Font size is chosen so the string fits inside the box (with a small margin).

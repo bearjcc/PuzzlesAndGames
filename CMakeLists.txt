@@ -51,6 +51,7 @@ FetchContent_MakeAvailable(SDL2_ttf)
 
 add_library(pg_core STATIC
   src/core/pg_digits.c
+  src/core/pg_sdl.c
   src/core/pg_text.c
   src/core/pg_theme.c
 )

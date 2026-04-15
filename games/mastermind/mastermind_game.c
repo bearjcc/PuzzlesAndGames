@@ -3,6 +3,7 @@
 #include "mastermind_logic.h"
 #include "pg/catalog/pg_catalog.h"
 #include "pg/digits.h"
+#include "pg/sdl.h"
 
 #include <SDL.h>
 
@@ -115,11 +116,6 @@ static void mm_reset(MmUi *u, uint32_t seed)
   mm_state_reset(&u->st, &cfg, seed);
 }
 
-static void mm_mouse_to_logical(const MmUi *u, int window_x, int window_y, float *lx, float *ly)
-{
-  pg_sdl_window_to_logical(u->renderer, window_x, window_y, lx, ly);
-}
-
 /* Sets *out_value to 0 (blank) or 1..ncolours. *out_value = -1 if no hit. */
 static void mm_palette_hit(const MmUi *u, float mx, float my, int *out_value)
 {
@@ -187,7 +183,7 @@ static void *mm_create(SDL_Renderer *renderer)
   u->renderer = renderer;
   int w = 0;
   int h = 0;
-  SDL_GetRendererOutputSize(renderer, &w, &h);
+  (void)pg_sdl_renderer_output_size(renderer, &w, &h);
   u->win_w = w;
   u->win_h = h;
   mm_layout(u);
@@ -213,7 +209,9 @@ static void mm_on_event(void *state, const SDL_Event *event)
   if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
     float mx;
     float my;
-    mm_mouse_to_logical(u, event->button.x, event->button.y, &mx, &my);
+    if (!pg_sdl_event_pointer_logical(u->renderer, event, &mx, &my)) {
+      return;
+    }
     int pi = -1;
     mm_palette_hit(u, mx, my, &pi);
     if (pi >= 0) {
@@ -412,7 +410,7 @@ static void mm_render(void *state, SDL_Renderer *renderer)
   if (u->st.outcome == 1) {
     int ww = 0;
     int hh = 0;
-    SDL_GetRendererOutputSize(renderer, &ww, &hh);
+    (void)pg_sdl_renderer_output_size(renderer, &ww, &hh);
     SDL_FRect dim = {0.0f, 0.0f, (float)ww, (float)hh};
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 40, 90, 40, 120);
@@ -420,7 +418,7 @@ static void mm_render(void *state, SDL_Renderer *renderer)
   } else if (u->st.outcome == -1) {
     int ww = 0;
     int hh = 0;
-    SDL_GetRendererOutputSize(renderer, &ww, &hh);
+    (void)pg_sdl_renderer_output_size(renderer, &ww, &hh);
     SDL_FRect dim = {0.0f, 0.0f, (float)ww, (float)hh};
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 60, 40, 40, 140);

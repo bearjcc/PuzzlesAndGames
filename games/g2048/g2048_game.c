@@ -2,6 +2,7 @@
 
 #include "g2048_board.h"
 #include "pg/catalog/pg_catalog.h"
+#include "pg/sdl.h"
 #include "pg/text.h"
 #include "pg/theme.h"
 
@@ -15,6 +16,7 @@ static const float kMoveDuration = 0.13f;
 static const float kMergePulse = 0.11f;
 
 typedef struct G2048Game {
+  PgTextSession text_session;
   SDL_Renderer *renderer;
   G2048Board board;
   G2048Board pending;
@@ -235,7 +237,8 @@ static void *g2048_create(SDL_Renderer *renderer)
   if (g == NULL) {
     return NULL;
   }
-  if (!pg_text_ref()) {
+  pg_text_session_begin(&g->text_session);
+  if (!g->text_session.active) {
     SDL_free(g);
     return NULL;
   }
@@ -244,15 +247,19 @@ static void *g2048_create(SDL_Renderer *renderer)
   g->renderer = renderer;
   int w = 0;
   int h = 0;
-  SDL_GetRendererOutputSize(renderer, &w, &h);
+  (void)pg_sdl_renderer_output_size(renderer, &w, &h);
   g2048_layout(g, w, h);
   return g;
 }
 
 static void g2048_destroy(void *state)
 {
-  pg_text_unref();
-  SDL_free(state);
+  G2048Game *g = (G2048Game *)state;
+  if (g == NULL) {
+    return;
+  }
+  pg_text_session_end(&g->text_session);
+  SDL_free(g);
 }
 
 static void g2048_reset_cb(void *state)
@@ -397,7 +404,7 @@ static void g2048_render(void *state, SDL_Renderer *renderer)
     banner.y = (float)g->layout_y + (float)g->board_px + 16.0f;
     int ww = 0;
     int hh = 0;
-    SDL_GetRendererOutputSize(renderer, &ww, &hh);
+    (void)pg_sdl_renderer_output_size(renderer, &ww, &hh);
     (void)hh;
     banner.w = (float)ww - 48.0f;
     if (banner.w < 120.0f) {
@@ -413,7 +420,7 @@ static void g2048_render(void *state, SDL_Renderer *renderer)
   if (g->game_over) {
     int ww = 0;
     int hh = 0;
-    SDL_GetRendererOutputSize(renderer, &ww, &hh);
+    (void)pg_sdl_renderer_output_size(renderer, &ww, &hh);
     SDL_FRect dim = {0.0f, 0.0f, (float)ww, (float)hh};
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_Color scrim = PG_COLOR_OVERLAY_SCRIM;
